@@ -69,6 +69,8 @@ npm run build
 npm run start
 ```
 
+Detailed step-by-step deploy instructions: `DEPLOY.md`.
+
 Recommended:
 
 - run `next start` behind `systemd` or `pm2`
