@@ -17,15 +17,10 @@ export async function callGatewayRpc<T = unknown>(
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+  const wsUrl = `${gatewayUrl}${gatewayToken ? `?token=${gatewayToken}` : ''}`;
+
   return new Promise<T>((resolve, reject) => {
-    const ws = new WebSocket(gatewayUrl, {
-      headers: gatewayToken
-        ? {
-            Authorization: `Bearer ${gatewayToken}`,
-            "x-openclaw-token": gatewayToken,
-          }
-        : undefined,
-    });
+    const ws = new WebSocket(wsUrl);
 
     const timeout = setTimeout(() => {
       ws.close();
