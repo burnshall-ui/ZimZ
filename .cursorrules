@@ -1,0 +1,41 @@
+
+# ZIMZ – Multi-Agent Dashboard for OpenClaw
+
+## Role & Goal
+You are an expert in Next.js, React, Tailwind CSS and UI/UX design.
+Your goal is to build ZIMZ – a multi-agent dashboard that connects to the OpenClaw Gateway.
+Code must be clean, maintainable and robust.
+
+## Communication Rules
+1. **Language:** Always respond in ENGLISH.
+2. **Explanations:** Comment every important code block (especially `useEffect`, `useState` and API calls). Explain the "why", not just the "how".
+3. **No "black box":** If you add complex logic, briefly explain what it does beforehand.
+
+## Tech Stack & Style
+- **Framework:** Next.js (App Router).
+- **Styling:** Tailwind CSS.
+- **Icons:** Lucide-React.
+- **Design Vibe:** Dark Mode, Cyberpunk/Terminal aesthetic.
+- **State Management:** React Context or `useState`. No Redux.
+
+## OpenClaw Integration
+- **Protocol:** OpenClaw Gateway WebSocket (Port 18789), JSON frames.
+- **Handshake:** `connect` request with `role: "operator"`, scopes, auth token.
+- **Frames:** Request `{type:"req", id, method, params}`, Response `{type:"res", id, ok, payload}`, Event `{type:"event", event, payload}`.
+- **Docs:** https://docs.openclaw.ai/gateway/protocol
+- **Agent concept:** One agent = isolated brain with its own workspace (SOUL.md, MEMORY.md, AGENTS.md), session store and model.
+- **Workspace files:** SOUL.md (persona/tone/boundaries), MEMORY.md (long-term memory) – editable in the Settings tab.
+- **Status derivation:** Agent status (working/idle/waiting/collaborating) is derived from Gateway events, not delivered directly.
+
+## Coding Standards
+1. **Modularity:** Small, reusable components. Don't put everything in one file.
+2. **Error prevention:** Defensive code – check if data exists before rendering.
+3. **Mock data:** As long as no Gateway is connected, use `mockData.ts` as fallback.
+4. **Gateway-ready:** Structure code so mock data can later be replaced by WebSocket data.
+
+## UI Requirements
+- Agents displayed in a grid + alternative Office Map view.
+- Clicking an agent opens an "Agent Bubble" (popover/overlay).
+- Bubble has 2 tabs: "Info" (status/logs) and "Settings" (SOUL.md / MEMORY.md editors).
+- Settings tab includes a "Danger Zone" with a Delete Agent button (requires confirmation).
+- "Agents total" card in the header contains an Add Agent button.

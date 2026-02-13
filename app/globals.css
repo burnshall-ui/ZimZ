@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --background: #030712;
+  --foreground: #e2e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.cyber-grid-bg {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(8, 145, 178, 0.22), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(79, 70, 229, 0.18), transparent 40%),
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    34px 34px,
+    34px 34px;
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+}
+
+.scanline-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(248, 250, 252, 0.03),
+    rgba(248, 250, 252, 0) 3px
+  );
+  background-size: 100% 4px;
+}
+
+.neon-panel {
+  background:
+    linear-gradient(165deg, rgba(30, 41, 59, 0.72), rgba(2, 6, 23, 0.86)),
+    rgba(2, 6, 23, 0.6);
+}
+
+.terminal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.terminal-scroll::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.terminal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.45);
+  border-radius: 999px;
+}
