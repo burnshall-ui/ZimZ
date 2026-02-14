@@ -2,17 +2,29 @@ import { NextResponse } from "next/server";
 import { callGatewayRpc } from "@/src/lib/openclawGateway";
 import type { Agent } from "@/src/types/agent";
 
+interface GatewayAgentConfig {
+  id: string;
+  name?: string;
+  model?: string;
+}
+
+interface GatewayConfig {
+  result?: { parsed?: { agents?: { list?: GatewayAgentConfig[] } } };
+  agents?: { list?: GatewayAgentConfig[] };
+}
+
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     // Fetch real agents from OpenClaw
-    const configResult = await callGatewayRpc<any>("config.get");
-    const config = configResult.result?.parsed || configResult.result || configResult;
+    const configResult = await callGatewayRpc<GatewayConfig>("config.get");
+    const config = configResult.result?.parsed || configResult;
+    const agentList = config.agents?.list;
 
     let agents: Agent[] = [];
-    if (config?.agents?.list) {
-      agents = config.agents.list.map((a: any) => ({
+    if (agentList) {
+      agents = agentList.map((a: GatewayAgentConfig) => ({
         id: a.id,
         name: a.name || a.id,
         status: "idle" as const,

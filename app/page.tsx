@@ -1,6 +1,4 @@
 import DashboardView from "@/src/components/DashboardView";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
-import type { Agent } from "@/src/types/agent";
 
 export default function Home() {
   const agents = [{
