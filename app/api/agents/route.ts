@@ -13,6 +13,14 @@ interface GatewayConfig {
   agents?: { list?: GatewayAgentConfig[] };
 }
 
+interface AgentAddParams {
+  id: string;
+  workspace?: string;
+  name?: string;
+  model?: string;
+  initialTask?: string;
+}
+
 export const runtime = "nodejs";
 
 export async function GET() {
@@ -54,7 +62,7 @@ export async function GET() {
   } catch (error) {
     console.error("Agents fetch failed:", error);
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : "Failed to load agents",
         fallbackAgents: [{
           id: "alex-summarizer",
@@ -66,8 +74,37 @@ export async function GET() {
           soulMd: "# Fallback",
           memoryMd: ""
         }]
-      }, 
+      },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as AgentAddParams;
+
+    // Build workspace path if not provided
+    const workspace = body.workspace || `~/.openclaw/workspace-${body.id}`;
+
+    // Call OpenClaw Gateway to create agent
+    await callGatewayRpc("agents.create", {
+      id: body.id,
+      workspace,
+      name: body.name,
+      model: body.model,
+    });
+
+    return NextResponse.json({
+      success: true,
+      agent: {
+        id: body.id,
+        name: body.name || body.id,
+        workspace,
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to add agent";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

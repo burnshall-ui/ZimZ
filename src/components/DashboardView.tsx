@@ -64,16 +64,51 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
   // ── Handlers ────────────────────────────────
 
   /** Add a new agent to the cluster (mirrors `openclaw agents add <id>`) */
-  const handleAddAgent = (newAgent: Agent) => {
-    setAgents((prev) => [...prev, newAgent]);
-    setShowAddModal(false);
-    // TODO: Send via Gateway WS → openclaw agents add
+  const handleAddAgent = async (newAgent: Agent) => {
+    try {
+      const response = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: newAgent.id,
+          name: newAgent.name,
+          model: newAgent.modelType,
+          initialTask: newAgent.currentTask,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to add agent");
+      }
+
+      // Update local state after successful Gateway call
+      setAgents((prev) => [...prev, newAgent]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Failed to add agent:", error);
+      alert(error instanceof Error ? error.message : "Failed to add agent to Gateway");
+    }
   };
 
   /** Remove an agent from the cluster (mirrors `openclaw agents delete <id>`) */
-  const handleDeleteAgent = (agentId: string) => {
-    setAgents((prev) => prev.filter((a) => a.id !== agentId));
-    // TODO: Send via Gateway WS → openclaw agents delete
+  const handleDeleteAgent = async (agentId: string) => {
+    try {
+      const response = await fetch(`/api/agents/${agentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete agent");
+      }
+
+      // Update local state after successful Gateway call
+      setAgents((prev) => prev.filter((a) => a.id !== agentId));
+    } catch (error) {
+      console.error("Failed to delete agent:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete agent from Gateway");
+    }
   };
 
   return (
