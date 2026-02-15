@@ -10,7 +10,6 @@ interface GatewayMessage {
 }
 
 const DEFAULT_GATEWAY_URL = "ws://127.0.0.1:18789";
-const DEFAULT_GATEWAY_PASSWORD = "REDACTED_PASSWORD";
 const REQUEST_TIMEOUT_MS = 12_000;
 
 export async function callGatewayRpc<T = unknown>(
@@ -18,7 +17,6 @@ export async function callGatewayRpc<T = unknown>(
   params?: unknown,
 ): Promise<T> {
   const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL ?? DEFAULT_GATEWAY_URL;
-  const gatewayPassword = process.env.OPENCLAW_GATEWAY_PASSWORD ?? DEFAULT_GATEWAY_PASSWORD;
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return new Promise<T>((resolve, reject) => {
@@ -27,8 +25,6 @@ export async function callGatewayRpc<T = unknown>(
         'Origin': 'http://localhost:3000',
       },
     });
-    let authenticated = false;
-    let challengeNonce: string | null = null;
 
     const timeout = setTimeout(() => {
       ws.close();
@@ -62,9 +58,6 @@ export async function callGatewayRpc<T = unknown>(
 
       // Handle connect.challenge event
       if (msg.type === "event" && msg.event === "connect.challenge") {
-        const payload = msg.payload as { nonce?: string };
-        challengeNonce = payload?.nonce ?? null;
-
         // Respond with connect request (correct format)
         ws.send(
           JSON.stringify({
@@ -90,7 +83,6 @@ export async function callGatewayRpc<T = unknown>(
       // Handle connect response
       if (msg.id === "connect" && msg.type === "res") {
         if (msg.ok) {
-          authenticated = true;
           sendRequest();
         } else {
           cleanup();

@@ -13,6 +13,16 @@ interface AgentAddParams {
   initialTask?: string;
 }
 
+interface OpenClawAgentResponse {
+  id?: string;
+  name?: string;
+  identity?: {
+    name?: string;
+  };
+  model?: string;
+  modelType?: string;
+}
+
 export const runtime = "nodejs";
 
 export async function GET() {
@@ -26,7 +36,7 @@ export async function GET() {
       // Try to parse JSON output
       const parsed = JSON.parse(stdout);
       if (Array.isArray(parsed)) {
-        agents = parsed.map((a: any) => ({
+        agents = parsed.map((a: OpenClawAgentResponse) => ({
           id: a.id || "unknown",
           name: a.name || a.identity?.name || a.id || "Unknown",
           status: "idle" as const,

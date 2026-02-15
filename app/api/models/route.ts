@@ -4,16 +4,18 @@ import { join } from "path";
 
 export const runtime = "nodejs";
 
-interface ModelConfig {
-  alias?: string;
-}
-
 export async function GET() {
   try {
     // Read openclaw config
     const configPath = join(process.env.HOME || "/home/canni", ".openclaw/openclaw.json");
     const configData = await readFile(configPath, "utf-8");
-    const config = JSON.parse(configData);
+    const config = JSON.parse(configData) as {
+      agents?: {
+        defaults?: {
+          models?: Record<string, { alias?: string }>;
+        };
+      };
+    };
 
     // Extract available models from agents.defaults.models
     const modelsConfig = config?.agents?.defaults?.models || {};
