@@ -15,9 +15,8 @@ export async function callGatewayRpc<T = unknown>(
 ): Promise<T> {
   const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL ?? DEFAULT_GATEWAY_URL;
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
   const wsUrl = `${gatewayUrl}${gatewayToken ? `?token=${gatewayToken}` : ''}`;
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   return new Promise<T>((resolve, reject) => {
     const ws = new WebSocket(wsUrl);
