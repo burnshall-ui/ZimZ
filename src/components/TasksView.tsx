@@ -2,12 +2,14 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
   CalendarClock,
   CheckCircle2,
   Clock3,
   Edit3,
   Play,
   Plus,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
@@ -29,6 +31,10 @@ interface ScheduledTaskRecord {
   id: string;
   config: OpenClawCronAddParams;
   runState: "idle" | "queued";
+  lastRun?: number | null;
+  nextRun?: number | null;
+  lastStatus?: string | null;
+  lastError?: string | null;
 }
 
 interface TaskFormState {
@@ -39,6 +45,13 @@ interface TaskFormState {
   wakeMode: OpenClawWakeMode;
   message: string;
   agentId: string;
+}
+
+interface ApiCronJobState {
+  lastRunAtMs?: number | null;
+  nextRunAtMs?: number | null;
+  lastStatus?: string | null;
+  lastError?: string | null;
 }
 
 interface ApiCronJob {
@@ -54,6 +67,7 @@ interface ApiCronJob {
   enabled?: boolean;
   deleteAfterRun?: boolean;
   delivery?: OpenClawCronAddParams["delivery"];
+  state?: ApiCronJobState;
 }
 
 const cronIntervalPresets = [
@@ -62,26 +76,6 @@ const cronIntervalPresets = [
   { label: "2std", expr: "0 */2 * * *" },
   { label: "6std", expr: "0 */6 * * *" },
   { label: "12std", expr: "0 */12 * * *" },
-];
-
-const seedTasks: ScheduledTaskRecord[] = [
-  {
-    id: "task-01",
-    config: {
-      name: "Heartbeat Health Check",
-      schedule: { kind: "cron", expr: "*/30 * * * *", tz: "Europe/Berlin" },
-      sessionTarget: "isolated",
-      wakeMode: "next-heartbeat",
-      payload: {
-        kind: "agentTurn",
-        message: "Pruefe den Cluster-Status und melde nur relevante Signale.",
-      },
-      agentId: "agent-01",
-      enabled: true,
-      delivery: { mode: "none" },
-    },
-    runState: "idle",
-  },
 ];
 
 const toFormState = (task: ScheduledTaskRecord, fallbackAgentId: string): TaskFormState => ({
@@ -150,12 +144,37 @@ const toTaskRecord = (job: ApiCronJob): ScheduledTaskRecord | null => {
       enabled: job.enabled ?? true,
     },
     runState: "idle",
+    lastRun: job.state?.lastRunAtMs ?? null,
+    nextRun: job.state?.nextRunAtMs ?? null,
+    lastStatus: job.state?.lastStatus ?? null,
+    lastError: job.state?.lastError ?? null,
   };
+};
+
+const formatTs = (ms: number | null | undefined): string => {
+  if (!ms) return "\u2014";
+  const d = new Date(ms);
+  return d.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Berlin",
+  });
+};
+
+const formatDelivery = (task: ScheduledTaskRecord): string | null => {
+  const delivery = task.config.delivery;
+  const mode = delivery?.mode;
+  if (!mode || mode === "none") return null;
+  const channel = (delivery as unknown as Record<string, unknown>)?.channel;
+  const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+  return channel ? `${label} (${String(channel)})` : label;
 };
 
 export default function TasksView({ agents }: TasksViewProps) {
   const fallbackAgentId = agents[0]?.id ?? "";
-  const [tasks, setTasks] = useState<ScheduledTaskRecord[]>(seedTasks);
+  const [tasks, setTasks] = useState<ScheduledTaskRecord[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -167,7 +186,7 @@ export default function TasksView({ agents }: TasksViewProps) {
   const [editForm, setEditForm] = useState<TaskFormState>(
     defaultFormState(fallbackAgentId),
   );
-  const [nextTaskNumber, setNextTaskNumber] = useState(seedTasks.length + 1);
+  const [nextTaskNumber, setNextTaskNumber] = useState(1);
   const [createPresetValue, setCreatePresetValue] = useState("");
 
   const agentById = useMemo(
@@ -197,9 +216,7 @@ export default function TasksView({ agents }: TasksViewProps) {
         .map((job) => toTaskRecord(job))
         .filter((task): task is ScheduledTaskRecord => task !== null);
 
-      if (mapped.length > 0) {
-        setTasks(mapped);
-      }
+      setTasks(mapped);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load cron jobs";
@@ -223,6 +240,51 @@ export default function TasksView({ agents }: TasksViewProps) {
     return task.config.payload.kind === "systemEvent"
       ? task.config.payload.text
       : task.config.payload.message;
+  };
+
+  const renderRuntimeInfo = (task: ScheduledTaskRecord) => {
+    const delivery = formatDelivery(task);
+    const hasRuntime = task.nextRun || task.lastRun || task.lastStatus;
+    if (!hasRuntime && !delivery) return null;
+    return (
+      <div className="mt-1.5 space-y-0.5 border-t border-slate-800 pt-1.5 text-[11px] text-slate-500">
+        {task.nextRun && (
+          <p className="flex items-center gap-1">
+            <CalendarClock className="h-3 w-3 text-cyan-400/60" />
+            Naechster Lauf: {formatTs(task.nextRun)}
+          </p>
+        )}
+        {task.lastRun && (
+          <p className="flex items-center gap-1">
+            <Clock3 className="h-3 w-3 text-slate-500" />
+            Letzter Lauf: {formatTs(task.lastRun)}
+            {task.lastStatus && (
+              <span
+                className={
+                  task.lastStatus === "error"
+                    ? "ml-1 text-rose-400"
+                    : "ml-1 text-emerald-400"
+                }
+              >
+                ({task.lastStatus})
+              </span>
+            )}
+          </p>
+        )}
+        {task.lastStatus === "error" && task.lastError && (
+          <p className="flex items-center gap-1 text-rose-400/80">
+            <AlertTriangle className="h-3 w-3" />
+            <span className="line-clamp-1">{task.lastError}</span>
+          </p>
+        )}
+        {delivery && (
+          <p className="flex items-center gap-1">
+            <Send className="h-3 w-3 text-cyan-400/50" />
+            {delivery}
+          </p>
+        )}
+      </div>
+    );
   };
 
   const handleOpenCreate = () => {
@@ -726,6 +788,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
                     <p className="line-clamp-2 text-slate-500">{payloadText}</p>
+                    {renderRuntimeInfo(task)}
                   </div>
 
                   <div className="mt-4 flex items-center gap-1.5">
@@ -806,6 +869,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
                     <p className="line-clamp-2 text-slate-500">{payloadText}</p>
+                    {renderRuntimeInfo(task)}
                   </div>
 
                   <div className="mt-4 flex items-center gap-1.5">
@@ -886,6 +950,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
                     <p className="line-clamp-2">{payloadText}</p>
+                    {renderRuntimeInfo(task)}
                   </div>
 
                   <div className="mt-4 flex items-center gap-1.5">

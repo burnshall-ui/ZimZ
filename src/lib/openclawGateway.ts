@@ -58,7 +58,7 @@ export async function callGatewayRpc<T = unknown>(
 
       // Handle connect.challenge event
       if (msg.type === "event" && msg.event === "connect.challenge") {
-        // Respond with connect request (correct format)
+        // Respond with connect request including auth
         ws.send(
           JSON.stringify({
             type: "req",
@@ -67,10 +67,15 @@ export async function callGatewayRpc<T = unknown>(
             params: {
               minProtocol: 3,
               maxProtocol: 3,
+              auth: {
+                ...(process.env.OPENCLAW_GATEWAY_PASSWORD
+                  ? { password: process.env.OPENCLAW_GATEWAY_PASSWORD }
+                  : { token: process.env.OPENCLAW_GATEWAY_TOKEN ?? "" }),
+              },
               client: {
-                id: "test",
+                id: "gateway-client",
                 platform: "linux",
-                mode: "test",
+                mode: "backend",
                 version: "2026.2.9",
               },
               role: "operator",
