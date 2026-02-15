@@ -2,18 +2,13 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Agent, AgentStatus } from "@/src/types/agent";
 
-// Common model presets (from OpenClaw provider docs)
-const modelPresets = [
-  "anthropic/claude-sonnet-4-5",
-  "anthropic/claude-opus-4-6",
-  "openai/o4-mini",
-  "openai/gpt-4o",
-  "google/gemini-2.5-pro",
-  "google/gemini-2.5-flash",
-];
+interface Model {
+  id: string;
+  name: string;
+}
 
 interface AddAgentModalProps {
   open: boolean;
@@ -30,10 +25,33 @@ export default function AddAgentModal({
 }: AddAgentModalProps) {
   const [agentId, setAgentId] = useState("");
   const [name, setName] = useState("");
-  const [modelType, setModelType] = useState(modelPresets[0]);
+  const [modelType, setModelType] = useState("");
   const [customModel, setCustomModel] = useState("");
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [initialTask, setInitialTask] = useState("");
+  const [availableModels, setAvailableModels] = useState<Model[]>([]);
+  const [loadingModels, setLoadingModels] = useState(true);
+
+  // Load available models from API
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const res = await fetch("/api/models");
+        const data = await res.json();
+        setAvailableModels(data.models || []);
+        if (data.models && data.models.length > 0) {
+          setModelType(data.models[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load models:", error);
+        // Fallback to empty array
+        setAvailableModels([]);
+      } finally {
+        setLoadingModels(false);
+      }
+    }
+    fetchModels();
+  }, []);
 
   // Validation
   const trimmedId = agentId.trim().toLowerCase().replace(/\s+/g, "-");
@@ -63,7 +81,7 @@ export default function AddAgentModal({
   const resetForm = () => {
     setAgentId("");
     setName("");
-    setModelType(modelPresets[0]);
+    setModelType(availableModels.length > 0 ? availableModels[0].id : "");
     setCustomModel("");
     setUseCustomModel(false);
     setInitialTask("");
@@ -191,13 +209,20 @@ export default function AddAgentModal({
                       id="agent-model"
                       value={modelType}
                       onChange={(e) => setModelType(e.target.value)}
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 font-mono text-xs text-slate-200 outline-none transition focus:border-cyan-400/50"
+                      disabled={loadingModels}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 font-mono text-xs text-slate-200 outline-none transition focus:border-cyan-400/50 disabled:opacity-50"
                     >
-                      {modelPresets.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
+                      {loadingModels ? (
+                        <option>Loading models...</option>
+                      ) : availableModels.length > 0 ? (
+                        availableModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="">No models available</option>
+                      )}
                     </select>
                     <button
                       type="button"
