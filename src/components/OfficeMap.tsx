@@ -276,23 +276,23 @@ export default function OfficeMap({ agents, onDeleteAgent }: OfficeMapProps) {
 
   return (
     <LayoutGroup>
-      {/* Floor plan layout: Meeting Room on top, Dev Lab + Lounge below */}
+      {/* Floor plan layout: Dev Lab on top, Meeting Room + Lounge below */}
       <div className="grid min-h-[420px] grid-rows-2 gap-3">
-        {/* Meeting Room - full width on top */}
+        {/* Dev Lab - full width on top */}
         <ZonePanel
-          config={meetingCfg}
-          agents={grouped.meeting}
+          config={devlabCfg}
+          agents={grouped.devlab}
           selectedAgentId={selectedAgentId}
           onToggleAgent={handleToggle}
           onCloseAgent={handleClose}
           onDeleteAgent={onDeleteAgent}
         />
 
-        {/* Bottom row: Dev Lab left, Lounge right */}
+        {/* Bottom row: Meeting Room left, Lounge right */}
         <div className="grid grid-cols-2 gap-3">
           <ZonePanel
-            config={devlabCfg}
-            agents={grouped.devlab}
+            config={meetingCfg}
+            agents={grouped.meeting}
             selectedAgentId={selectedAgentId}
             onToggleAgent={handleToggle}
             onCloseAgent={handleClose}

@@ -6,7 +6,6 @@ import {
   CalendarClock,
   LayoutGrid,
   Map,
-  Plus,
   Sparkles,
   TerminalSquare,
   Wifi,
@@ -240,23 +239,11 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
               </p>
             </div>
 
-            {/* Agents total + Add button */}
+            {/* Agents total */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
               <p className="mb-1 text-slate-400">Agents total</p>
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-cyan-200">{agents.length}</p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(true)}
-                    className="group inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/20"
-                    title="Add agent (agents.add)"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span className="hidden sm:inline">Add</span>
-                  </button>
-                </div>
-              </div>
+              {/* ToDo# Header-Add-Button bleibt absichtlich ausgeblendet; Add-Logik bleibt im Code erhalten. */}
+              <p className="font-mono text-cyan-200">{agents.length}</p>
             </div>
 
             <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">

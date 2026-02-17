@@ -24,7 +24,7 @@ export default function AgentGrid({ agents, onDeleteAgent }: AgentGridProps) {
           <p className="font-medium">No agents loaded</p>
         </div>
         <p className="text-sm text-amber-100/80">
-          Add an agent using the button above, or check your data source.
+          Add agents via your gateway/API workflow, or check your data source.
         </p>
       </div>
     );
