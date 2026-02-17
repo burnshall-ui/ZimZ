@@ -198,6 +198,7 @@ function ZonePanel({
   onCloseAgent,
   onDeleteAgent,
   onSaveAgent,
+  className,
 }: {
   config: ZoneConfig;
   agents: Agent[];
@@ -206,10 +207,11 @@ function ZonePanel({
   onCloseAgent: () => void;
   onDeleteAgent?: (agentId: string) => void;
   onSaveAgent?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
+  className?: string;
 }) {
   return (
     <div
-      className={`relative overflow-visible rounded-xl border ${config.borderColor} bg-slate-950/60 p-5`}
+      className={`relative overflow-visible rounded-xl border ${config.borderColor} bg-slate-950/60 p-4 sm:p-5 ${className ?? ""}`}
     >
       {/* Subtle colored background glow */}
       <div
@@ -283,8 +285,10 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
 
   return (
     <LayoutGroup>
-      {/* Floor plan layout: Dev Lab on top, Meeting Room + Lounge below */}
-      <div className="grid min-h-[420px] grid-rows-2 gap-3">
+      {/* Floor plan layout:
+          - Mobile: stacked zones for better readability
+          - Desktop: Dev Lab on top, Meeting Room + Lounge below */}
+      <div className="grid gap-3 md:min-h-[420px] md:grid-rows-2">
         {/* Dev Lab - full width on top */}
         <ZonePanel
           config={devlabCfg}
@@ -296,8 +300,8 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
           onSaveAgent={onSaveAgent}
         />
 
-        {/* Bottom row: Meeting Room left, Lounge right */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Bottom row (desktop): Meeting Room left, Lounge right */}
+        <div className="grid gap-3 md:grid-cols-2 md:items-start">
           <ZonePanel
             config={meetingCfg}
             agents={grouped.meeting}
@@ -305,6 +309,8 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
             onToggleAgent={handleToggle}
             onCloseAgent={handleClose}
             onDeleteAgent={onDeleteAgent}
+            onSaveAgent={onSaveAgent}
+            className="md:self-start"
           />
           <ZonePanel
             config={loungeCfg}
@@ -313,6 +319,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
             onToggleAgent={handleToggle}
             onCloseAgent={handleClose}
             onDeleteAgent={onDeleteAgent}
+            onSaveAgent={onSaveAgent}
           />
         </div>
       </div>
