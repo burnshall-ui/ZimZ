@@ -143,6 +143,18 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
     }
   }, []);
 
+  // ── Save agent workspace files ────────────────
+  const handleSaveAgent = useCallback(
+    (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => {
+      setAgents((prev) =>
+        prev.map((a) =>
+          a.id === agentId ? { ...a, ...updates } : a,
+        ),
+      );
+    },
+    [],
+  );
+
   // ── Delete agent via Gateway RPC ─────────────
   const handleDeleteAgent = useCallback(async (agentId: string) => {
     try {
@@ -298,7 +310,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <AgentGrid agents={agents} onDeleteAgent={handleDeleteAgent} />
+                <AgentGrid agents={agents} onDeleteAgent={handleDeleteAgent} onSaveAgent={handleSaveAgent} />
               </motion.div>
             ) : viewMode === "map" ? (
               <motion.div
@@ -308,7 +320,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                <OfficeMap agents={agents} onDeleteAgent={handleDeleteAgent} />
+                <OfficeMap agents={agents} onDeleteAgent={handleDeleteAgent} onSaveAgent={handleSaveAgent} />
               </motion.div>
             ) : (
               <motion.div

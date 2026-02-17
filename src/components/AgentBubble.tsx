@@ -15,15 +15,17 @@ interface AgentBubbleProps {
   agent: Agent;
   onClose: () => void;
   onDelete?: (agentId: string) => void;
+  onSave?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
 }
 
-export default function AgentBubble({ agent, onClose, onDelete }: AgentBubbleProps) {
+export default function AgentBubble({ agent, onClose, onDelete, onSave }: AgentBubbleProps) {
   const [activeTab, setActiveTab] = useState<BubbleTab>("info");
   const [activeFile, setActiveFile] = useState<SettingsFile>("soul");
 
-  // Local copies of workspace files (persisted via Gateway WS later)
+  // Local copies of workspace files
   const [soulMd, setSoulMd] = useState(agent.soulMd);
   const [memoryMd, setMemoryMd] = useState(agent.memoryMd);
+  const [saving, setSaving] = useState(false);
 
   // Dirty state: indicates whether user has unsaved changes
   const soulDirty = soulMd !== agent.soulMd;
@@ -33,11 +35,31 @@ export default function AgentBubble({ agent, onClose, onDelete }: AgentBubblePro
   // Delete confirmation dialog
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Placeholder for Gateway integration
-  const handleSave = () => {
-    // TODO: Write via Gateway WebSocket to agent workspace
-    // e.g. exec tool: write SOUL.md / MEMORY.md in workspace
-    console.log(`[${agent.id}] Save:`, { soulMd, memoryMd });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates: { soulMd?: string; memoryMd?: string } = {};
+      if (soulDirty) updates.soulMd = soulMd;
+      if (memoryDirty) updates.memoryMd = memoryMd;
+
+      const res = await fetch(`/api/agents/${agent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+
+      onSave?.(agent.id, updates);
+    } catch (error) {
+      console.error("Failed to save agent files:", error);
+      alert(error instanceof Error ? error.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Delete handler with confirmation
@@ -264,10 +286,11 @@ export default function AgentBubble({ agent, onClose, onDelete }: AgentBubblePro
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={handleSave}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/15 px-4 py-2 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/25"
+                disabled={saving}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/15 px-4 py-2 text-xs font-medium text-cyan-200 transition hover:bg-cyan-500/25 disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" />
-                Save changes
+                {saving ? "Saving..." : "Save changes"}
               </motion.button>
             )}
 

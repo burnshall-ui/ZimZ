@@ -64,6 +64,8 @@ export interface GatewayAgentEntry {
   identity?: AgentIdentity;
   sandbox?: unknown;
   tools?: unknown;
+  soulMd?: string;
+  memoryMd?: string;
 }
 
 /** Response from agents.list RPC */
@@ -110,8 +112,8 @@ export function gatewayEntryToAgent(entry: GatewayAgentEntry): Agent {
     currentTask: "Ready",
     modelType: entry.model ?? entry.modelType ?? "not configured",
     logs: [],
-    soulMd: `# ${displayName}\n\nOpenClaw Agent`,
-    memoryMd: "# Memory\n\nAgent Memory",
+    soulMd: entry.soulMd ?? `# ${displayName}\n\nOpenClaw Agent`,
+    memoryMd: entry.memoryMd ?? "# Memory\n\nAgent Memory",
     workspace: entry.workspace,
     identity: entry.identity,
     isDefault: entry.default,

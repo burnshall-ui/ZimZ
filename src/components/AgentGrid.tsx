@@ -10,9 +10,10 @@ import type { Agent } from "@/src/types/agent";
 interface AgentGridProps {
   agents: Agent[];
   onDeleteAgent?: (agentId: string) => void;
+  onSaveAgent?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
 }
 
-export default function AgentGrid({ agents, onDeleteAgent }: AgentGridProps) {
+export default function AgentGrid({ agents, onDeleteAgent, onSaveAgent }: AgentGridProps) {
   // Store only the selected ID so exactly one bubble stays open at a time.
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
@@ -54,6 +55,7 @@ export default function AgentGrid({ agents, onDeleteAgent }: AgentGridProps) {
                   agent={agent}
                   onClose={() => setSelectedAgentId(null)}
                   onDelete={onDeleteAgent}
+                  onSave={onSaveAgent}
                 />
               ) : null}
             </AnimatePresence>

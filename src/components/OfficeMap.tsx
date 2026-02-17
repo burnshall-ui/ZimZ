@@ -138,12 +138,14 @@ function AgentAvatar({
   onToggle,
   onClose,
   onDelete,
+  onSave,
 }: {
   agent: Agent;
   isSelected: boolean;
   onToggle: () => void;
   onClose: () => void;
   onDelete?: (agentId: string) => void;
+  onSave?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
 }) {
   const style = avatarStyles[agent.status];
 
@@ -179,6 +181,7 @@ function AgentAvatar({
             agent={agent}
             onClose={onClose}
             onDelete={onDelete}
+            onSave={onSave}
           />
         )}
       </AnimatePresence>
@@ -194,6 +197,7 @@ function ZonePanel({
   onToggleAgent,
   onCloseAgent,
   onDeleteAgent,
+  onSaveAgent,
 }: {
   config: ZoneConfig;
   agents: Agent[];
@@ -201,6 +205,7 @@ function ZonePanel({
   onToggleAgent: (agentId: string) => void;
   onCloseAgent: () => void;
   onDeleteAgent?: (agentId: string) => void;
+  onSaveAgent?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
 }) {
   return (
     <div
@@ -238,6 +243,7 @@ function ZonePanel({
             onToggle={() => onToggleAgent(agent.id)}
             onClose={onCloseAgent}
             onDelete={onDeleteAgent}
+            onSave={onSaveAgent}
           />
         ))}
       </div>
@@ -252,9 +258,10 @@ function ZonePanel({
 interface OfficeMapProps {
   agents: Agent[];
   onDeleteAgent?: (agentId: string) => void;
+  onSaveAgent?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
 }
 
-export default function OfficeMap({ agents, onDeleteAgent }: OfficeMapProps) {
+export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: OfficeMapProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const handleToggle = (agentId: string) => {
@@ -286,6 +293,7 @@ export default function OfficeMap({ agents, onDeleteAgent }: OfficeMapProps) {
           onToggleAgent={handleToggle}
           onCloseAgent={handleClose}
           onDeleteAgent={onDeleteAgent}
+          onSaveAgent={onSaveAgent}
         />
 
         {/* Bottom row: Meeting Room left, Lounge right */}
