@@ -1,20 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
-  Cpu,
   LayoutGrid,
   Map,
   Plus,
   Sparkles,
   TerminalSquare,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import AgentGrid from "@/src/components/AgentGrid";
 import OfficeMap from "@/src/components/OfficeMap";
 import AddAgentModal from "@/src/components/AddAgentModal";
 import TasksView from "@/src/components/TasksView";
+import { useGatewayEvents } from "@/src/hooks/useGatewayEvents";
 import type { Agent } from "@/src/types/agent";
 
 // ──────────────────────────────────────────────
@@ -38,7 +40,7 @@ const viewTabs: { id: ViewMode; label: string; Icon: typeof LayoutGrid }[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Status legend for grid view
+// Status legend
 // ──────────────────────────────────────────────
 
 const statusLegend = [
@@ -54,17 +56,67 @@ const statusLegend = [
 
 export default function DashboardView({ agents: initialAgents }: DashboardViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-
-  // Mutable agent list – initialized from props (mock data or gateway)
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
-
-  // Add Agent modal state
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // ── Handlers ────────────────────────────────
+  // Live Gateway events
+  const { gatewayConnected, getAgentUpdate } = useGatewayEvents();
 
-  /** Add a new agent to the cluster (mirrors `openclaw agents add <id>`) */
-  const handleAddAgent = async (newAgent: Agent) => {
+  // ── Apply live status updates to agents ────
+  useEffect(() => {
+    setAgents((prev) =>
+      prev.map((agent) => {
+        const update = getAgentUpdate(agent.id);
+        if (!update) return agent;
+
+        const updatedAgent = { ...agent };
+        if (update.status) updatedAgent.status = update.status;
+        if (update.task) updatedAgent.currentTask = update.task;
+        if (update.log) {
+          updatedAgent.logs = [...agent.logs.slice(-49), update.log];
+        }
+        return updatedAgent;
+      }),
+    );
+  }, [getAgentUpdate]);
+
+  // ── Periodic agent list refresh (every 30s) ────
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const res = await fetch("/api/agents");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.agents && Array.isArray(data.agents)) {
+          setAgents((prev) => {
+            // Merge: keep live status from existing agents
+            const existingById: Record<string, Agent> = {};
+            for (const a of prev) existingById[a.id] = a;
+            return data.agents.map((fresh: Agent) => {
+              const existing = existingById[fresh.id];
+              if (existing) {
+                return {
+                  ...fresh,
+                  status: existing.status,
+                  currentTask: existing.currentTask,
+                  logs: existing.logs,
+                };
+              }
+              return fresh;
+            });
+          });
+        }
+      } catch {
+        // Silent fail – don't break the dashboard
+      }
+    };
+
+    const interval = setInterval(refresh, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Add agent via Gateway RPC ────────────────
+  const handleAddAgent = useCallback(async (newAgent: Agent) => {
     try {
       const response = await fetch("/api/agents", {
         method: "POST",
@@ -73,43 +125,44 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
           id: newAgent.id,
           name: newAgent.name,
           model: newAgent.modelType,
-          initialTask: newAgent.currentTask,
+          identity: { name: newAgent.name },
         }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to add agent");
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Failed to add agent");
       }
 
-      // Update local state after successful Gateway call
+      // Add to local state
       setAgents((prev) => [...prev, newAgent]);
       setShowAddModal(false);
     } catch (error) {
       console.error("Failed to add agent:", error);
-      alert(error instanceof Error ? error.message : "Failed to add agent to Gateway");
+      alert(error instanceof Error ? error.message : "Agent konnte nicht erstellt werden");
     }
-  };
+  }, []);
 
-  /** Remove an agent from the cluster (mirrors `openclaw agents delete <id>`) */
-  const handleDeleteAgent = async (agentId: string) => {
+  // ── Delete agent via Gateway RPC ─────────────
+  const handleDeleteAgent = useCallback(async (agentId: string) => {
     try {
       const response = await fetch(`/api/agents/${agentId}`, {
         method: "DELETE",
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete agent");
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || "Failed to delete agent");
       }
 
-      // Update local state after successful Gateway call
       setAgents((prev) => prev.filter((a) => a.id !== agentId));
     } catch (error) {
       console.error("Failed to delete agent:", error);
-      alert(error instanceof Error ? error.message : "Failed to delete agent from Gateway");
+      alert(error instanceof Error ? error.message : "Agent konnte nicht gelöscht werden");
     }
-  };
+  }, []);
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-slate-950 text-slate-100">
@@ -131,7 +184,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
               </h1>
             </div>
 
-            {/* ── View Toggle (top-right in header) ── */}
+            {/* ── View Toggle ── */}
             <div className="flex shrink-0 items-center rounded-xl border border-slate-700 bg-slate-900/80 p-1">
               {viewTabs.map(({ id, label, Icon }) => (
                 <button
@@ -165,15 +218,29 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
 
           {/* Cluster status cards */}
           <div className="mt-5 grid gap-3 text-xs text-slate-300 md:grid-cols-3">
+            {/* Gateway Connection Status */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
-              <p className="mb-1 text-slate-400">Cluster Status</p>
-              <p className="inline-flex items-center gap-2 font-medium text-emerald-300">
-                <Cpu className="h-3.5 w-3.5" />
-                Stable
+              <p className="mb-1 text-slate-400">Gateway Status</p>
+              <p
+                className={`inline-flex items-center gap-2 font-medium ${
+                  gatewayConnected ? "text-emerald-300" : "text-red-400"
+                }`}
+              >
+                {gatewayConnected ? (
+                  <>
+                    <Wifi className="h-3.5 w-3.5" />
+                    Connected
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3.5 w-3.5" />
+                    Disconnected
+                  </>
+                )}
               </p>
             </div>
 
-            {/* ── Agents total card with Add/Remove buttons ── */}
+            {/* Agents total + Add button */}
             <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
               <p className="mb-1 text-slate-400">Agents total</p>
               <div className="flex items-center justify-between">
@@ -183,7 +250,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
                     type="button"
                     onClick={() => setShowAddModal(true)}
                     className="group inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-500/20"
-                    title="Add agent (openclaw agents add)"
+                    title="Add agent (agents.add)"
                   >
                     <Plus className="h-3 w-3" />
                     <span className="hidden sm:inline">Add</span>
@@ -196,7 +263,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
               <p className="mb-1 text-slate-400">Interface</p>
               <p className="inline-flex items-center gap-2 font-medium text-cyan-100">
                 <TerminalSquare className="h-3.5 w-3.5" />
-                Cyberpunk UI
+                Gateway RPC
               </p>
             </div>
           </div>
@@ -204,7 +271,6 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
 
         {/* ── CONTENT SECTION ──────────────────────── */}
         <section className="neon-panel rounded-2xl border border-slate-800 bg-slate-950/80 p-5 md:p-6">
-          {/* Section header with dynamic title and legend */}
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
               {viewMode === "grid"
@@ -236,7 +302,6 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
             )}
           </div>
 
-          {/* View content with smooth transition animation */}
           <AnimatePresence mode="wait">
             {viewMode === "grid" ? (
               <motion.div
