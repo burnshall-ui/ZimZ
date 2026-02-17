@@ -140,7 +140,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
       setShowAddModal(false);
     } catch (error) {
       console.error("Failed to add agent:", error);
-      alert(error instanceof Error ? error.message : "Agent konnte nicht erstellt werden");
+      alert(error instanceof Error ? error.message : "Failed to create agent");
     }
   }, []);
 
@@ -160,7 +160,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
       setAgents((prev) => prev.filter((a) => a.id !== agentId));
     } catch (error) {
       console.error("Failed to delete agent:", error);
-      alert(error instanceof Error ? error.message : "Agent konnte nicht gelöscht werden");
+      alert(error instanceof Error ? error.message : "Failed to delete agent");
     }
   }, []);
 

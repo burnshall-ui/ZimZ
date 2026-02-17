@@ -989,9 +989,9 @@ export default function TasksView({ agents }: TasksViewProps) {
       {tasks.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 p-8 text-center">
           <CalendarClock className="mx-auto mb-2 h-5 w-5 text-slate-500" />
-          <p className="text-sm text-slate-300">Noch keine Tasks vorhanden.</p>
+          <p className="text-sm text-slate-300">No tasks yet.</p>
           <p className="mt-1 text-xs text-slate-500">
-            Erstelle die erste Cron-Task ueber den Button oben rechts.
+            Create your first cron task using the button in the top right.
           </p>
         </div>
       )}
@@ -1021,7 +1021,7 @@ export default function TasksView({ agents }: TasksViewProps) {
       <ConfirmDialog
         open={Boolean(taskToDeleteId)}
         title="Delete Task"
-        message="Willst du diese Task wirklich loeschen? Dieser Schritt kann nicht rueckgaengig gemacht werden."
+        message="Are you sure you want to delete this task? This action cannot be undone."
         confirmLabel="Delete"
         cancelLabel="Cancel"
         variant="danger"

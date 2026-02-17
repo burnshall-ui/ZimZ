@@ -71,8 +71,8 @@ export function useGatewayEvents() {
         update = {
           agentId,
           status: "working",
-          task: "Heartbeat ausgeführt",
-          log: `[${new Date().toLocaleTimeString("de-DE")}] heartbeat: OK`,
+          task: "Heartbeat executed",
+          log: `[${new Date().toLocaleTimeString()}] heartbeat: OK`,
         };
         break;
       }

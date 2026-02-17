@@ -1,5 +1,8 @@
 import { WebSocket } from "ws";
 import { EventEmitter } from "events";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 
 // ──────────────────────────────────────────────
 // Types
@@ -53,21 +56,89 @@ function makeRequestId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function base64UrlEncode(buf: Buffer): string {
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+interface DeviceIdentity {
+  deviceId: string;
+  privateKeyPem: string;
+  publicKeyPem: string;
+  token: string;
+}
+
+let cachedDeviceIdentity: DeviceIdentity | null | undefined;
+
+function loadDeviceIdentity(): DeviceIdentity | null {
+  if (cachedDeviceIdentity !== undefined) return cachedDeviceIdentity;
+  try {
+    const stateDir = process.env.OPENCLAW_STATE_DIR ?? path.join(process.env.HOME ?? "/home/canni", ".openclaw");
+    const deviceJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device.json"), "utf8"));
+    const authJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device-auth.json"), "utf8"));
+    const token = authJson.tokens?.operator?.token ?? "";
+    cachedDeviceIdentity = {
+      deviceId: deviceJson.deviceId,
+      privateKeyPem: deviceJson.privateKeyPem,
+      publicKeyPem: deviceJson.publicKeyPem,
+      token,
+    };
+    return cachedDeviceIdentity;
+  } catch {
+    cachedDeviceIdentity = null;
+    return null;
+  }
+}
+
 /** Build the connect params shared by one-shot and persistent connections */
-function buildConnectParams(clientId: string) {
-  return {
+function buildConnectParams(clientId: string, nonce?: string) {
+  const role = "operator";
+  const scopes = ["operator.admin"];
+  const device = loadDeviceIdentity();
+
+  const params: Record<string, unknown> = {
     minProtocol: 3,
     maxProtocol: 3,
     auth: getAuthParams(),
     client: {
-      id: clientId,
+      id: "gateway-client",
       platform: "linux",
-      mode: "operator",
+      mode: "backend",
       version: "2026.2.17",
+      instanceId: clientId,
     },
-    role: "operator",
-    scopes: ["operator.read", "operator.write"],
+    role,
+    scopes,
   };
+
+  if (device) {
+    const signedAtMs = Date.now();
+    const payloadStr = [
+      nonce ? "v2" : "v1",
+      device.deviceId,
+      "gateway-client",
+      "backend",
+      role,
+      scopes.join(","),
+      String(signedAtMs),
+      device.token,
+      ...(nonce ? [nonce] : []),
+    ].join("|");
+    const key = crypto.createPrivateKey(device.privateKeyPem);
+    const signature = base64UrlEncode(crypto.sign(null, Buffer.from(payloadStr, "utf8"), key));
+    const pubKeyDer = crypto.createPublicKey(device.publicKeyPem).export({ type: "spki", format: "der" });
+    const pubKeyRaw = base64UrlEncode(pubKeyDer.subarray(-32));
+
+    params.auth = { ...getAuthParams(), token: device.token };
+    params.device = {
+      id: device.deviceId,
+      publicKey: pubKeyRaw,
+      signature,
+      signedAt: signedAtMs,
+      ...(nonce ? { nonce } : {}),
+    };
+  }
+
+  return params;
 }
 
 // ──────────────────────────────────────────────
@@ -108,12 +179,13 @@ export async function callGatewayRpc<T = unknown>(
 
       // Step 1: Respond to connect.challenge
       if (msg.type === "event" && msg.event === "connect.challenge") {
+        const nonce = (msg.payload as { nonce?: string })?.nonce;
         ws.send(
           JSON.stringify({
             type: "req",
             id: "connect",
             method: "connect",
-            params: buildConnectParams("zimz-rpc"),
+            params: buildConnectParams("zimz-rpc", nonce),
           }),
         );
         return;
@@ -202,12 +274,13 @@ class GatewayEventManager extends EventEmitter {
 
       // Handshake: respond to connect.challenge
       if (msg.type === "event" && msg.event === "connect.challenge") {
+        const nonce = (msg.payload as { nonce?: string })?.nonce;
         this.ws?.send(
           JSON.stringify({
             type: "req",
             id: "connect",
             method: "connect",
-            params: buildConnectParams("zimz-events"),
+            params: buildConnectParams("zimz-events", nonce),
           }),
         );
         return;
