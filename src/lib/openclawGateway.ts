@@ -237,6 +237,83 @@ export async function callGatewayRpc<T = unknown>(
 }
 
 // ──────────────────────────────────────────────
+// Fire-and-forget RPC (connect → send → close, no response needed)
+// Used for methods like cron.run that don't send a response frame
+// ──────────────────────────────────────────────
+
+export async function fireGatewayRpc(
+  method: string,
+  params?: unknown,
+): Promise<void> {
+  const gatewayUrl = getGatewayUrl();
+  const requestId = makeRequestId();
+
+  return new Promise<void>((resolve, reject) => {
+    const ws = new WebSocket(gatewayUrl, {
+      headers: { Origin: "http://localhost:3000" },
+    });
+
+    const timeout = setTimeout(() => {
+      ws.close();
+      reject(new Error(`Gateway connect timeout for method "${method}"`));
+    }, REQUEST_TIMEOUT_MS);
+
+    ws.on("message", (raw) => {
+      let msg: GatewayFrame;
+      try {
+        msg = JSON.parse(raw.toString()) as GatewayFrame;
+      } catch {
+        return;
+      }
+
+      if (msg.type === "event" && msg.event === "connect.challenge") {
+        const nonce = (msg.payload as { nonce?: string })?.nonce;
+        ws.send(
+          JSON.stringify({
+            type: "req",
+            id: "connect",
+            method: "connect",
+            params: buildConnectParams("zimz-rpc-fire", nonce),
+          }),
+        );
+        return;
+      }
+
+      if (msg.id === "connect" && msg.type === "res") {
+        if (msg.ok) {
+          ws.send(
+            JSON.stringify({
+              type: "req",
+              id: requestId,
+              method,
+              params: params ?? {},
+            }),
+          );
+          // Resolve immediately after sending — no response expected
+          clearTimeout(timeout);
+          setTimeout(() => ws.close(), 500);
+          resolve();
+        } else {
+          clearTimeout(timeout);
+          ws.close();
+          reject(new Error(msg.error?.message ?? "Gateway authentication failed"));
+        }
+        return;
+      }
+    });
+
+    ws.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    ws.on("close", () => {
+      clearTimeout(timeout);
+    });
+  });
+}
+
+// ──────────────────────────────────────────────
 // Persistent Gateway connection for event streaming
 // Singleton per Node.js process (works with `next start`)
 // ──────────────────────────────────────────────

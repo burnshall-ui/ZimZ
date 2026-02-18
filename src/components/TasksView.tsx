@@ -541,7 +541,7 @@ export default function TasksView({ agents }: TasksViewProps) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="absolute z-30 mt-3 w-full px-4 md:left-1/2 md:w-[26rem] md:-translate-x-1/2 md:px-0 lg:w-[42rem]"
+          className="absolute z-30 mt-3 left-1/2 -translate-x-1/2 w-[calc(100vw-32px)] md:w-[26rem] lg:w-[42rem]"
           initial={{ opacity: 0, y: -8, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.97 }}

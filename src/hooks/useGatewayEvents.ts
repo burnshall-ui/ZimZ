@@ -47,24 +47,57 @@ export function useGatewayEvents() {
   const processGatewayEvent = useCallback((evt: GatewaySSEEvent) => {
     setLastEvent(evt);
 
-    // Derive agent status from known event types
     const payload = evt.payload as Record<string, unknown> | null;
     if (!payload) return;
 
-    const agentId = (payload.agentId ?? payload.agent) as string | undefined;
+    // agentId can be direct OR embedded in sessionKey ("agent:{agentId}:...")
+    let agentId = (payload.agentId ?? payload.agent) as string | undefined;
+    if (!agentId && typeof payload.sessionKey === "string") {
+      const parts = payload.sessionKey.split(":");
+      if (parts.length >= 2 && parts[0] === "agent") {
+        agentId = parts[1];
+      }
+    }
     if (!agentId) return;
 
     let update: AgentStatusUpdate | null = null;
 
     switch (evt.event) {
       case "agent": {
-        // Agent activity event
-        const status = payload.status as string | undefined;
-        update = {
-          agentId,
-          status: mapAgentStatus(status),
-          task: (payload.task ?? payload.message) as string | undefined,
-        };
+        const stream = payload.stream as string | undefined;
+        const data = payload.data as Record<string, unknown> | undefined;
+
+        if (stream === "lifecycle") {
+          const phase = data?.phase as string | undefined;
+          if (phase === "start") {
+            update = { agentId, status: "working", task: "Running…" };
+          } else if (phase === "end") {
+            update = { agentId, status: "idle" };
+          }
+        } else if (stream === "assistant") {
+          const text = (data?.text ?? data?.delta) as string | undefined;
+          update = {
+            agentId,
+            status: "working",
+            task: text ? text.slice(0, 80) : "Working…",
+          };
+        }
+        break;
+      }
+      case "cron": {
+        const action = payload.action as string | undefined;
+        const sessionKey = payload.sessionKey as string | undefined;
+        // For "finished" we have sessionKey, for "started" we use the agentId already extracted
+        if (action === "started") {
+          update = { agentId, status: "working", task: "Cron job running…" };
+        } else if (action === "finished") {
+          // Extract agentId from sessionKey if available for accuracy
+          if (sessionKey) {
+            const parts = sessionKey.split(":");
+            if (parts.length >= 2 && parts[0] === "agent") agentId = parts[1];
+          }
+          update = { agentId, status: "idle" };
+        }
         break;
       }
       case "heartbeat": {
@@ -80,16 +113,12 @@ export function useGatewayEvents() {
         update = {
           agentId,
           status: "working",
-          task: (payload.preview ?? "Verarbeitet Nachricht") as string,
+          task: (payload.preview ?? "Processing message") as string,
         };
         break;
       }
       case "presence": {
-        // Presence changes can indicate collaborating state
-        update = {
-          agentId,
-          status: "collaborating",
-        };
+        update = { agentId, status: "collaborating" };
         break;
       }
     }
@@ -97,7 +126,7 @@ export function useGatewayEvents() {
     if (update) {
       setAgentUpdates((prev) => {
         const next = new Map(prev);
-        next.set(agentId, update);
+        next.set(agentId!, update!);
         return next;
       });
     }
