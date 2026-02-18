@@ -19,6 +19,7 @@ import type { Agent } from "@/src/types/agent";
 import type {
   OpenClawCronAddParams,
   OpenClawCronUpdateParams,
+  OpenClawDeliveryChannel,
   OpenClawSessionTarget,
   OpenClawWakeMode,
 } from "@/src/types/cron";
@@ -45,6 +46,9 @@ interface TaskFormState {
   wakeMode: OpenClawWakeMode;
   message: string;
   agentId: string;
+  deliveryMode: "none" | "announce";
+  deliveryChannel: string;
+  deliveryTo: string;
 }
 
 interface ApiCronJobState {
@@ -89,6 +93,9 @@ const toFormState = (task: ScheduledTaskRecord, fallbackAgentId: string): TaskFo
       ? task.config.payload.text
       : task.config.payload.message,
   agentId: task.config.agentId ?? fallbackAgentId,
+  deliveryMode: task.config.delivery?.mode === "announce" ? "announce" : "none",
+  deliveryChannel: task.config.delivery?.channel ?? "telegram",
+  deliveryTo: task.config.delivery?.to ?? "",
 });
 
 const defaultFormState = (fallbackAgentId: string): TaskFormState => ({
@@ -99,10 +106,21 @@ const defaultFormState = (fallbackAgentId: string): TaskFormState => ({
   wakeMode: "next-heartbeat",
   message: "",
   agentId: fallbackAgentId,
+  deliveryMode: "none",
+  deliveryChannel: "telegram",
+  deliveryTo: "",
 });
 
 const toCronConfig = (form: TaskFormState): OpenClawCronAddParams => {
   const isMain = form.sessionTarget === "main";
+  const delivery: OpenClawCronAddParams["delivery"] =
+    form.deliveryMode === "announce"
+      ? {
+          mode: "announce",
+          channel: (form.deliveryChannel || "telegram") as OpenClawDeliveryChannel,
+          ...(form.deliveryTo.trim() ? { to: form.deliveryTo.trim() } : {}),
+        }
+      : { mode: "none" };
   return {
     name: form.name.trim(),
     schedule: {
@@ -117,7 +135,7 @@ const toCronConfig = (form: TaskFormState): OpenClawCronAddParams => {
       : { kind: "agentTurn", message: form.message.trim() },
     ...(form.agentId ? { agentId: form.agentId } : {}),
     enabled: true,
-    ...(isMain ? {} : { delivery: { mode: "none" as const } }),
+    delivery,
   };
 };
 
@@ -679,6 +697,53 @@ export default function TasksView({ agents }: TasksViewProps) {
                   </select>
                 </label>
               </div>
+
+              {/* Delivery */}
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs text-slate-300">
+                  Delivery
+                  <select
+                    value={form.deliveryMode}
+                    onChange={(event) =>
+                      onChange({ deliveryMode: event.target.value as "none" | "announce" })
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
+                  >
+                    <option value="none">none</option>
+                    <option value="announce">announce</option>
+                  </select>
+                </label>
+
+                {form.deliveryMode === "announce" && (
+                  <label className="block text-xs text-slate-300">
+                    Channel
+                    <select
+                      value={form.deliveryChannel}
+                      onChange={(event) => onChange({ deliveryChannel: event.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
+                    >
+                      <option value="telegram">Telegram</option>
+                      <option value="last">Last</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="discord">Discord</option>
+                      <option value="slack">Slack</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              {form.deliveryMode === "announce" && (
+                <label className="block text-xs text-slate-300">
+                  Deliver To
+                  <input
+                    type="text"
+                    value={form.deliveryTo}
+                    onChange={(event) => onChange({ deliveryTo: event.target.value })}
+                    placeholder="telegram:123456789"
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40"
+                  />
+                </label>
+              )}
 
               <label className="block text-xs text-slate-300">
                 {form.sessionTarget === "main" ? "System Event Text" : "Agent Turn Message"}
