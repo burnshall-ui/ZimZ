@@ -547,7 +547,7 @@ export default function TasksView({ agents }: TasksViewProps) {
           exit={{ opacity: 0, y: -8, scale: 0.97 }}
           transition={{ duration: 0.24, ease: "easeOut" }}
         >
-          <div className="relative w-full max-w-2xl rounded-2xl border border-cyan-300/35 bg-slate-950/95 p-6 shadow-[0_14px_50px_rgba(4,12,28,0.85)] backdrop-blur">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-cyan-300/35 bg-slate-950/95 p-4 shadow-[0_14px_50px_rgba(4,12,28,0.85)] backdrop-blur md:p-6">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-cyan-300" />
@@ -580,7 +580,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                 )}
               </label>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
                 <label className="block text-xs text-slate-300">
                   Cron Expression
                   <div className="mt-1 flex gap-2">
@@ -635,7 +635,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                 </label>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 md:gap-3">
                 <label className="block text-xs text-slate-300">
                   Session Target
                   <select
@@ -643,7 +643,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     onChange={(event) =>
                       onChange({ sessionTarget: event.target.value as OpenClawSessionTarget })
                     }
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40"
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
                   >
                     <option value="isolated">isolated</option>
                     <option value="main">main</option>
@@ -657,7 +657,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     onChange={(event) =>
                       onChange({ wakeMode: event.target.value as OpenClawWakeMode })
                     }
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40"
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
                   >
                     <option value="next-heartbeat">next-heartbeat</option>
                     <option value="now">now</option>
@@ -669,7 +669,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                   <select
                     value={form.agentId}
                     onChange={(event) => onChange({ agentId: event.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40"
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
                   >
                     {agents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
