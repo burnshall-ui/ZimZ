@@ -47,17 +47,19 @@ Built for operators who run OpenClaw on a VPS or homelab and want a clean overvi
 
 **Live Status** — Persistent WebSocket connection to the Gateway streams events (`agent`, `heartbeat`, `chat`, `presence`) via Server-Sent Events to the browser. Agent cards update in real-time without refresh.
 
-**Three Views** — Switch between Agent Grid (card layout with detail bubbles), Office Map (agents grouped by status zones: Dev Lab, Meeting Room, Lounge), and Task Scheduler (cron jobs with create/edit/run/delete).
+**Three Views** — Switch between Agent Grid (card layout with detail bubbles), Office Map (agents grouped by status zones with dissolve transitions), and Task Scheduler (cron jobs with create/edit/run/delete).
 
-**Agent Bubble** — Click any agent card to open a detail overlay with two tabs: Info (current task, live log stream) and Settings (SOUL.md and MEMORY.md editor, danger zone for deletion).
+**Agent Bubble** — Click any agent card to open a detail overlay with two tabs: Info (current task, live log stream) and Settings (SOUL.md and MEMORY.md editor with live save via Gateway RPC, danger zone for deletion).
+
+**Workspace File Editing** — Read and write agent workspace files (SOUL.md, MEMORY.md) directly from the dashboard. Changes are persisted through the Gateway via `agents.files.get` / `agents.files.set` RPC calls.
 
 **Model Assignment** — Assign or change the AI model for each agent via the dashboard. Models are fetched from the Gateway's configured provider list.
 
-**Task Scheduler** — Create and manage cron jobs assigned to specific agents. Supports cron expressions, interval schedules, one-shot timers, and delivery options.
+**Task Scheduler** — Create and manage cron jobs assigned to specific agents. Supports cron expressions, interval schedules, one-shot timers, delivery/announce options (Telegram, Discord, Slack, WhatsApp, and more), and configurable delivery targets.
 
 **Gateway Health** — Header shows live connection status (connected/disconnected) and agent count. Status endpoint exposes `health` and `system-presence` data.
 
-**Mobile Ready** — Responsive layout, works as iOS/Android home screen shortcut.
+**PWA / Mobile Ready** — Installable as Progressive Web App on iOS and Android. Standalone display mode, custom app icon, responsive layout optimized for all screen sizes.
 
 ## Tech Stack
 
@@ -102,9 +104,10 @@ All communication with OpenClaw runs through the Gateway WebSocket — no CLI ex
 
 | Route | Method | Gateway RPC |
 |-------|--------|-------------|
-| `GET /api/agents` | List agents | `agents.list` |
+| `GET /api/agents` | List agents + workspace files | `agents.list` + `agents.files.get` |
 | `POST /api/agents` | Add agent | `agents.add` |
-| `PATCH /api/agents/:id` | Update agent/model | `agents.update` |
+| `GET /api/agents/:id` | Get agent + workspace files | `agents.list` + `agents.files.get` |
+| `PATCH /api/agents/:id` | Update agent / save files | `agents.update` + `agents.files.set` |
 | `DELETE /api/agents/:id` | Delete agent | `agents.delete` |
 | `GET /api/models` | Available models | `models.list` |
 | `GET /api/status` | Health + presence | `health` / `system-presence` |
@@ -141,16 +144,22 @@ Run `next start` behind `systemd` or `pm2`, reverse-proxy via Nginx or Caddy ins
 
 ```
 app/
-  layout.tsx              # Root layout (dark theme, Orbitron font)
-  page.tsx                # SSR entry — direct Gateway RPC for agent list
+  layout.tsx              # Root layout (dark theme, Orbitron font, PWA metadata)
+  page.tsx                # SSR entry — Gateway RPC for agent list + workspace files
   globals.css             # Tailwind + cyberpunk CSS
   api/
-    agents/route.ts       # agents.list / agents.add (Gateway RPC)
-    agents/[id]/route.ts  # agents.delete / agents.update (Gateway RPC)
+    agents/route.ts       # agents.list / agents.add + files enrichment
+    agents/[id]/route.ts  # GET / PATCH / DELETE + agents.files.get/set
     models/route.ts       # models.list (Gateway RPC)
     status/route.ts       # health + system-presence (Gateway RPC)
     events/route.ts       # SSE stream — persistent Gateway WS events
-    cron/jobs/…           # cron.list / cron.add / cron.update / cron.remove
+    cron/jobs/…           # cron.list / cron.add / cron.update / cron.remove / cron.run
+
+public/
+  manifest.json           # PWA manifest (standalone, custom icons)
+  apple-touch-icon.png    # iOS home screen icon
+  icon-512.png            # Android / PWA icon
+  favicon.svg             # Browser tab icon
 
 src/
   lib/
@@ -161,14 +170,14 @@ src/
     DashboardView.tsx     # Main layout with header, views, live events
     AgentGrid.tsx         # Card grid layout
     AgentCard.tsx         # Individual agent card
-    AgentBubble.tsx       # Detail popup (Info + Settings tabs)
-    OfficeMap.tsx         # Status zone map (Dev Lab / Meeting Room / Lounge)
+    AgentBubble.tsx       # Detail popup (Info + Settings tabs, file save)
+    OfficeMap.tsx         # Status zone map with dissolve transitions
     AddAgentModal.tsx     # Agent registration modal
-    TasksView.tsx         # Cron job scheduler
+    TasksView.tsx         # Cron job scheduler with delivery options
     ConfirmDialog.tsx     # Reusable confirmation dialog
   types/
-    agent.ts              # Agent types (OpenClaw-compatible)
-    cron.ts               # Cron types (OpenClaw-compatible)
+    agent.ts              # Agent types (OpenClaw-compatible, incl. soulMd/memoryMd)
+    cron.ts               # Cron types (schedules, payloads, delivery channels)
   data/
     mockData.ts           # Fallback agents (when Gateway is offline)
 ```
