@@ -191,9 +191,13 @@ export default function AgentBubble({ agent, onClose, onDelete, onSave }: AgentB
                 Agent Log
               </p>
               <div className="terminal-scroll max-h-32 space-y-1 overflow-y-auto pr-2 font-mono text-xs text-emerald-300/90">
-                {agent.logs.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
+                {agent.logs.length === 0 ? (
+                  <p className="text-slate-600 italic">Waiting for events…</p>
+                ) : (
+                  agent.logs.map((line, i) => (
+                    <p key={`${i}-${line}`}>{line}</p>
+                  ))
+                )}
               </div>
             </div>
           </div>

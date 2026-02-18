@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
@@ -61,6 +61,9 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
   // Live Gateway events
   const { gatewayConnected, getAgentUpdate } = useGatewayEvents();
 
+  // Track which updates have already been applied to avoid duplicate logs
+  const appliedUpdatesRef = useRef<Record<string, unknown>>({});
+
   // ── Apply live status updates to agents ────
   useEffect(() => {
     setAgents((prev) =>
@@ -68,12 +71,14 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
         const update = getAgentUpdate(agent.id);
         if (!update) return agent;
 
+        const isNew = appliedUpdatesRef.current[agent.id] !== update;
         const updatedAgent = { ...agent };
         if (update.status) updatedAgent.status = update.status;
         if (update.task) updatedAgent.currentTask = update.task;
-        if (update.log) {
+        if (update.log && isNew) {
           updatedAgent.logs = [...agent.logs.slice(-49), update.log];
         }
+        if (isNew) appliedUpdatesRef.current[agent.id] = update;
         return updatedAgent;
       }),
     );

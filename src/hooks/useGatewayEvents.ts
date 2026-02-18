@@ -70,9 +70,9 @@ export function useGatewayEvents() {
         if (stream === "lifecycle") {
           const phase = data?.phase as string | undefined;
           if (phase === "start") {
-            update = { agentId, status: "working", task: "Running…" };
+            update = { agentId, status: "working", task: "Running…", log: `[${new Date().toLocaleTimeString()}] lifecycle: start` };
           } else if (phase === "end") {
-            update = { agentId, status: "idle" };
+            update = { agentId, status: "idle", log: `[${new Date().toLocaleTimeString()}] lifecycle: end` };
           }
         } else if (stream === "assistant") {
           const text = (data?.text ?? data?.delta) as string | undefined;
@@ -80,6 +80,7 @@ export function useGatewayEvents() {
             agentId,
             status: "working",
             task: text ? text.slice(0, 80) : "Working…",
+            log: text ? `[${new Date().toLocaleTimeString()}] ${text.slice(0, 120)}` : undefined,
           };
         }
         break;
@@ -89,14 +90,14 @@ export function useGatewayEvents() {
         const sessionKey = payload.sessionKey as string | undefined;
         // For "finished" we have sessionKey, for "started" we use the agentId already extracted
         if (action === "started") {
-          update = { agentId, status: "working", task: "Cron job running…" };
+          update = { agentId, status: "working", task: "Cron job running…", log: `[${new Date().toLocaleTimeString()}] cron: started` };
         } else if (action === "finished") {
           // Extract agentId from sessionKey if available for accuracy
           if (sessionKey) {
             const parts = sessionKey.split(":");
             if (parts.length >= 2 && parts[0] === "agent") agentId = parts[1];
           }
-          update = { agentId, status: "idle" };
+          update = { agentId, status: "idle", log: `[${new Date().toLocaleTimeString()}] cron: finished` };
         }
         break;
       }
@@ -110,15 +111,17 @@ export function useGatewayEvents() {
         break;
       }
       case "chat": {
+        const preview = (payload.preview ?? "Processing message") as string;
         update = {
           agentId,
           status: "working",
-          task: (payload.preview ?? "Processing message") as string,
+          task: preview,
+          log: `[${new Date().toLocaleTimeString()}] chat: ${preview.slice(0, 100)}`,
         };
         break;
       }
       case "presence": {
-        update = { agentId, status: "collaborating" };
+        update = { agentId, status: "collaborating", log: `[${new Date().toLocaleTimeString()}] presence: collaborating` };
         break;
       }
     }
