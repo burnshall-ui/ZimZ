@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Code2, Coffee, Users } from "lucide-react";
 import { useState } from "react";
 import AgentBubble from "@/src/components/AgentBubble";
@@ -152,12 +152,14 @@ function AgentAvatar({
   return (
     <div className="relative overflow-visible">
       <motion.button
-        layoutId={`avatar-${agent.id}`}
+        initial={{ opacity: 0, scale: 0, filter: "blur(6px)" }}
+        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+        exit={{ opacity: 0, scale: 0, filter: "blur(6px)" }}
+        transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
         onClick={onToggle}
         className="group flex flex-col items-center gap-1.5"
         whileHover={{ scale: 1.12 }}
         whileTap={{ scale: 0.95 }}
-        transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
         <div
           className={`flex h-12 w-12 items-center justify-center rounded-full border-2 ${style.border} ${style.bg} ${style.glow} transition-all ${
@@ -237,17 +239,19 @@ function ZonePanel({
         {agents.length === 0 && (
           <p className="text-xs italic text-slate-700">No agents here</p>
         )}
-        {agents.map((agent) => (
-          <AgentAvatar
-            key={agent.id}
-            agent={agent}
-            isSelected={selectedAgentId === agent.id}
-            onToggle={() => onToggleAgent(agent.id)}
-            onClose={onCloseAgent}
-            onDelete={onDeleteAgent}
-            onSave={onSaveAgent}
-          />
-        ))}
+        <AnimatePresence mode="popLayout">
+          {agents.map((agent) => (
+            <AgentAvatar
+              key={`${agent.id}-${config.id}`}
+              agent={agent}
+              isSelected={selectedAgentId === agent.id}
+              onToggle={() => onToggleAgent(agent.id)}
+              onClose={onCloseAgent}
+              onDelete={onDeleteAgent}
+              onSave={onSaveAgent}
+            />
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -284,7 +288,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
   const loungeCfg = zoneConfigs.find((z) => z.id === "lounge")!;
 
   return (
-    <LayoutGroup>
+    <>
       {/* Floor plan layout:
           - Mobile: stacked zones for better readability
           - Desktop: Dev Lab on top, Meeting Room + Lounge below */}
@@ -323,6 +327,6 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
           />
         </div>
       </div>
-    </LayoutGroup>
+    </>
   );
 }
