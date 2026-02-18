@@ -76,24 +76,20 @@ export default function AgentBubble({ agent, onClose, onDelete, onSave }: AgentB
 
   // ── Viewport clamping ──────────────────────────
   const bubbleRef = useRef<HTMLDivElement>(null);
-  const [leftOffset, setLeftOffset] = useState<number | null>(null);
+  const [posCalc, setPosCalc] = useState<{ left: number; width: number } | null>(null);
 
   const clampToViewport = useCallback(() => {
     const el = bubbleRef.current;
     if (!el) return;
 
-    if (window.innerWidth < 768) {
-      setLeftOffset(null);
-      return;
-    }
-
     const parent = el.offsetParent as HTMLElement | null;
     if (!parent) return;
 
     const parentRect = parent.getBoundingClientRect();
-    const bubbleWidth = 416; // 26rem = 416px
     const viewportWidth = window.innerWidth;
     const padding = 16;
+    const maxWidth = 416; // 26rem
+    const bubbleWidth = Math.min(maxWidth, viewportWidth - padding * 2);
 
     const parentCenter = parentRect.left + parentRect.width / 2;
     let idealLeft = parentCenter - bubbleWidth / 2;
@@ -101,7 +97,7 @@ export default function AgentBubble({ agent, onClose, onDelete, onSave }: AgentB
     idealLeft = Math.max(padding, idealLeft);
     idealLeft = Math.min(viewportWidth - bubbleWidth - padding, idealLeft);
 
-    setLeftOffset(idealLeft - parentRect.left);
+    setPosCalc({ left: idealLeft - parentRect.left, width: bubbleWidth });
   }, []);
 
   useEffect(() => {
@@ -116,13 +112,11 @@ export default function AgentBubble({ agent, onClose, onDelete, onSave }: AgentB
     };
   }, [clampToViewport]);
 
-  const positionStyle = leftOffset !== null
-    ? { left: `${leftOffset}px` }
-    : undefined;
+  const positionStyle = posCalc
+    ? { left: `${posCalc.left}px`, width: `${posCalc.width}px` }
+    : { left: 0, width: "calc(100vw - 2rem)", maxWidth: "26rem" };
 
-  const positionClasses = leftOffset !== null
-    ? "absolute z-30 mt-3 md:w-[26rem]"
-    : "absolute z-30 mt-3 w-full md:left-1/2 md:w-[26rem] md:-translate-x-1/2";
+  const positionClasses = "absolute z-30 mt-3";
 
   return (
     <>
