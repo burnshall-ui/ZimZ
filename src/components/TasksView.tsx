@@ -107,7 +107,7 @@ const defaultFormState = (fallbackAgentId: string): TaskFormState => ({
   message: "",
   agentId: fallbackAgentId,
   deliveryMode: "none",
-  deliveryChannel: "telegram",
+  deliveryChannel: "last",
   deliveryTo: "",
 });
 
@@ -722,8 +722,8 @@ export default function TasksView({ agents }: TasksViewProps) {
                       onChange={(event) => onChange({ deliveryChannel: event.target.value })}
                       className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 md:px-3 md:text-sm"
                     >
+                      <option value="last">Last active (default)</option>
                       <option value="telegram">Telegram</option>
-                      <option value="last">Last</option>
                       <option value="whatsapp">WhatsApp</option>
                       <option value="discord">Discord</option>
                       <option value="slack">Slack</option>
