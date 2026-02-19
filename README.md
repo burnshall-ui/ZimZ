@@ -30,7 +30,7 @@ Built for operators who run OpenClaw on a VPS or homelab and want a clean overvi
 <p align="center">
   <img src="./public/screenshots/agent-grid-view.png" alt="Agent Grid — desktop view with 4 agents and detail bubble" width="48%" />
   &nbsp;
-  <img src="./public/screenshots/live-map-view.png" alt="Office Map — agents grouped by status zones" width="48%" />
+  <img src="./public/screenshots/live-map-sim.gif" alt="Office Map — animated state transitions in Live Map" width="48%" />
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@ Built for operators who run OpenClaw on a VPS or homelab and want a clean overvi
 </p>
 
 <p align="center">
-  <sub>Left: Agent Grid with detail bubble &nbsp;·&nbsp; Right: Office Map with status zones &nbsp;·&nbsp; Bottom: Mobile via iOS home button</sub>
+  <sub>Left: Agent Grid with detail bubble &nbsp;·&nbsp; Right: Live Map animation with status transitions &nbsp;·&nbsp; Bottom: Mobile via iOS home button</sub>
 </p>
 
 ## Features

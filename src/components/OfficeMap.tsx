@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { Code2, Coffee, Users } from "lucide-react";
 import { useState } from "react";
 import AgentBubble from "@/src/components/AgentBubble";
@@ -11,6 +11,20 @@ import type { Agent, AgentStatus } from "@/src/types/agent";
 // ──────────────────────────────────────────────
 
 type ZoneId = "meeting" | "devlab" | "lounge";
+
+interface MotionPreset {
+  layoutTransition: {
+    type: "spring";
+    stiffness: number;
+    damping: number;
+    mass: number;
+  };
+  spawnDuration: number;
+  hoverScale: number;
+  tapScale: number;
+  pulseDuration: number;
+  pulseScale: number;
+}
 
 /** Extract up to 2 initials from the agent name (e.g. "Sentinel-Core" -> "SC") */
 function getInitials(name: string): string {
@@ -74,6 +88,7 @@ interface ZoneConfig {
   borderColor: string;
   cornerColor: string;
   glowBg: string;
+  pulseColor: string;
 }
 
 const zoneConfigs: ZoneConfig[] = [
@@ -84,6 +99,7 @@ const zoneConfigs: ZoneConfig[] = [
     borderColor: "border-violet-500/25",
     cornerColor: "border-violet-400/40",
     glowBg: "bg-violet-500",
+    pulseColor: "rgba(139, 92, 246, 0.42)",
   },
   {
     id: "devlab",
@@ -92,6 +108,7 @@ const zoneConfigs: ZoneConfig[] = [
     borderColor: "border-emerald-500/25",
     cornerColor: "border-emerald-400/40",
     glowBg: "bg-emerald-500",
+    pulseColor: "rgba(16, 185, 129, 0.42)",
   },
   {
     id: "lounge",
@@ -100,8 +117,18 @@ const zoneConfigs: ZoneConfig[] = [
     borderColor: "border-amber-500/25",
     cornerColor: "border-amber-400/40",
     glowBg: "bg-amber-500",
+    pulseColor: "rgba(245, 158, 11, 0.38)",
   },
 ];
+
+const cleanProPreset: MotionPreset = {
+  layoutTransition: { type: "spring", stiffness: 320, damping: 30, mass: 0.9 },
+  spawnDuration: 0.18,
+  hoverScale: 1.04,
+  tapScale: 0.98,
+  pulseDuration: 0.22,
+  pulseScale: 1.015,
+};
 
 // ──────────────────────────────────────────────
 // Sub-components
@@ -134,6 +161,8 @@ function ZoneCorners({ color }: { color: string }) {
  */
 function AgentAvatar({
   agent,
+  preset,
+  transitionKey,
   isSelected,
   onToggle,
   onClose,
@@ -141,6 +170,8 @@ function AgentAvatar({
   onSave,
 }: {
   agent: Agent;
+  preset: MotionPreset;
+  transitionKey: string;
   isSelected: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -150,16 +181,28 @@ function AgentAvatar({
   const style = avatarStyles[agent.status];
 
   return (
-    <div className="relative overflow-visible">
+    <motion.div layout className="relative overflow-visible">
       <motion.button
+        layout
+        layoutId={`agent-avatar-${agent.id}`}
         initial={{ opacity: 0, scale: 0, filter: "blur(6px)" }}
         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
         exit={{ opacity: 0, scale: 0, filter: "blur(6px)" }}
-        transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+        transition={{
+          opacity: { duration: preset.spawnDuration, ease: "easeOut" },
+          filter: { duration: preset.spawnDuration, ease: "easeOut" },
+          scale: {
+            type: "spring",
+            stiffness: 360,
+            damping: 22,
+            mass: 0.65,
+          },
+          layout: preset.layoutTransition,
+        }}
         onClick={onToggle}
         className="group flex flex-col items-center gap-1.5"
-        whileHover={{ scale: 1.12 }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: preset.hoverScale }}
+        whileTap={{ scale: preset.tapScale }}
       >
         <div
           className={`flex h-12 w-12 items-center justify-center rounded-full border-2 ${style.border} ${style.bg} ${style.glow} transition-all ${
@@ -187,7 +230,7 @@ function AgentAvatar({
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 
@@ -195,6 +238,7 @@ function AgentAvatar({
 function ZonePanel({
   config,
   agents,
+  preset,
   selectedAgentId,
   onToggleAgent,
   onCloseAgent,
@@ -204,6 +248,7 @@ function ZonePanel({
 }: {
   config: ZoneConfig;
   agents: Agent[];
+  preset: MotionPreset;
   selectedAgentId: string | null;
   onToggleAgent: (agentId: string) => void;
   onCloseAgent: () => void;
@@ -211,6 +256,11 @@ function ZonePanel({
   onSaveAgent?: (agentId: string, updates: { soulMd?: string; memoryMd?: string }) => void;
   className?: string;
 }) {
+  const occupancyKey = agents
+    .map((agent) => `${agent.id}:${agent.status}`)
+    .sort()
+    .join("|");
+
   return (
     <div
       className={`relative overflow-visible rounded-xl border ${config.borderColor} bg-slate-950/60 p-4 sm:p-5 ${className ?? ""}`}
@@ -219,6 +269,17 @@ function ZonePanel({
       <div
         className={`pointer-events-none absolute inset-0 rounded-xl ${config.glowBg} opacity-[0.03]`}
       />
+      <AnimatePresence initial={false}>
+          <motion.span
+            key={`zone-pulse-${config.id}-${occupancyKey}`}
+            initial={{ opacity: 0.22, scale: 0.99 }}
+            animate={{ opacity: 0, scale: preset.pulseScale }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: preset.pulseDuration, ease: "easeOut" }}
+            style={{ backgroundColor: config.pulseColor }}
+            className="pointer-events-none absolute inset-1 rounded-[10px] blur-sm"
+          />
+      </AnimatePresence>
 
       {/* Futuristic corner decorations */}
       <ZoneCorners color={config.cornerColor} />
@@ -229,9 +290,15 @@ function ZonePanel({
         <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
           {config.label}
         </span>
-        <span className="ml-auto rounded-full bg-slate-800/80 px-2 py-0.5 text-[10px] tabular-nums text-slate-500">
+        <motion.span
+          key={`${config.id}-${agents.length}-${occupancyKey}`}
+          initial={{ opacity: 0.65, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 460, damping: 24 }}
+          className="ml-auto rounded-full bg-slate-800/80 px-2 py-0.5 text-[10px] tabular-nums text-slate-500"
+        >
           {agents.length}
-        </span>
+        </motion.span>
       </div>
 
       {/* Agent avatars within the zone */}
@@ -242,8 +309,10 @@ function ZonePanel({
         <AnimatePresence mode="popLayout">
           {agents.map((agent) => (
             <AgentAvatar
-              key={`${agent.id}-${config.id}`}
+              key={agent.id}
               agent={agent}
+              preset={preset}
+              transitionKey={agent.status}
               isSelected={selectedAgentId === agent.id}
               onToggle={() => onToggleAgent(agent.id)}
               onClose={onCloseAgent}
@@ -288,7 +357,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
   const loungeCfg = zoneConfigs.find((z) => z.id === "lounge")!;
 
   return (
-    <>
+    <LayoutGroup id="office-map-layout">
       {/* Floor plan layout:
           - Mobile: stacked zones for better readability
           - Desktop: Dev Lab on top, Meeting Room + Lounge below */}
@@ -297,6 +366,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
         <ZonePanel
           config={devlabCfg}
           agents={grouped.devlab}
+          preset={cleanProPreset}
           selectedAgentId={selectedAgentId}
           onToggleAgent={handleToggle}
           onCloseAgent={handleClose}
@@ -309,6 +379,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
           <ZonePanel
             config={meetingCfg}
             agents={grouped.meeting}
+            preset={cleanProPreset}
             selectedAgentId={selectedAgentId}
             onToggleAgent={handleToggle}
             onCloseAgent={handleClose}
@@ -319,6 +390,7 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
           <ZonePanel
             config={loungeCfg}
             agents={grouped.lounge}
+            preset={cleanProPreset}
             selectedAgentId={selectedAgentId}
             onToggleAgent={handleToggle}
             onCloseAgent={handleClose}
@@ -327,6 +399,6 @@ export default function OfficeMap({ agents, onDeleteAgent, onSaveAgent }: Office
           />
         </div>
       </div>
-    </>
+    </LayoutGroup>
   );
 }
