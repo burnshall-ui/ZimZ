@@ -28,9 +28,9 @@ Built for operators who run OpenClaw on a VPS or homelab and want a clean overvi
 ## Screenshots
 
 <p align="center">
-  <img src="./public/screenshots/agent-grid-view.png" alt="Agent Grid — desktop view with 4 agents and detail bubble" width="48%" />
+  <img src="./public/screenshots/agent-grid-view.png" alt="Agent Grid — desktop view with 4 agents and detail bubble" width="48%" style="vertical-align: top;" />
   &nbsp;
-  <img src="./public/screenshots/live-map-sim.gif" alt="Office Map — animated state transitions in Live Map" width="48%" />
+  <img src="./public/screenshots/live-map-sim.gif" alt="Office Map — animated state transitions in Live Map" width="48%" style="vertical-align: top;" />
 </p>
 
 <p align="center">
