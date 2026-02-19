@@ -232,6 +232,7 @@ export async function callGatewayRpc<T = unknown>(
 
     ws.on("close", () => {
       clearTimeout(timeout);
+      reject(new Error(`Gateway connection closed unexpectedly during "${method}"`));
     });
   });
 }
@@ -309,6 +310,7 @@ export async function fireGatewayRpc(
 
     ws.on("close", () => {
       clearTimeout(timeout);
+      reject(new Error(`Gateway connection closed unexpectedly during "${method}"`));
     });
   });
 }

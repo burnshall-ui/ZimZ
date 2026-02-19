@@ -14,6 +14,7 @@ export async function GET() {
   gatewayEvents.connect();
 
   const encoder = new TextEncoder();
+  let cleanupFn: (() => void) | null = null;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -69,30 +70,30 @@ export async function GET() {
       gatewayEvents.on("disconnected", onDisconnected);
       gatewayEvents.on("auth-error", onAuthError);
 
-      // Cleanup when client disconnects
+      // Cleanup when client disconnects — called from cancel() and close proxy
       const cleanup = () => {
+        if (!cleanupFn) return; // already cleaned up
+        cleanupFn = null;
         clearInterval(heartbeat);
         gatewayEvents.off("gateway-event", onGatewayEvent);
         gatewayEvents.off("connected", onConnected);
         gatewayEvents.off("disconnected", onDisconnected);
         gatewayEvents.off("auth-error", onAuthError);
       };
+      cleanupFn = cleanup;
 
-      // Handle stream cancellation
+      // Defense-in-depth: also clean up if controller.close() is called directly
       controller.close = new Proxy(controller.close, {
         apply(target, thisArg, args) {
           cleanup();
           return Reflect.apply(target, thisArg, args);
         },
       });
-
-      // Also handle abort via request signal (Next.js uses this)
-      // The stream will be cancelled when the client disconnects
     },
 
     cancel() {
-      // Client disconnected — cleanup happens via the Proxy above
-      // or we can do additional cleanup here if needed
+      // Client disconnected — call cleanup directly
+      cleanupFn?.();
     },
   });
 

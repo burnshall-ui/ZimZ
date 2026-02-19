@@ -122,7 +122,8 @@ export async function PATCH(request: Request, context: ParamsContext) {
       memoryMd?: string;
     };
 
-    const { soulMd, memoryMd, ...rpcParams } = body;
+    // Strip `id` from body to prevent path-ID override (security fix)
+    const { soulMd, memoryMd, id: _bodyId, ...rpcParams } = body;
 
     // Write workspace files via Gateway RPC
     const fileWrites: Promise<unknown>[] = [];
@@ -141,7 +142,7 @@ export async function PATCH(request: Request, context: ParamsContext) {
     }
 
     // Forward other fields to Gateway RPC if present
-    const hasRpcFields = Object.keys(rpcParams).some((k) => k !== "id");
+    const hasRpcFields = Object.keys(rpcParams).length > 0;
     if (hasRpcFields) {
       await callGatewayRpc<unknown>("agents.update", {
         id,
