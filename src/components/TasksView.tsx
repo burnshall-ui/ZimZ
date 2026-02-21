@@ -790,8 +790,8 @@ export default function TasksView({ agents }: TasksViewProps) {
   );
 
   return (
-    <div className="relative space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="relative min-w-0 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
           Scheduled Tasks
         </h3>
@@ -832,11 +832,11 @@ export default function TasksView({ agents }: TasksViewProps) {
               return (
                 <div
                   key={task.id}
-                  className="rounded-xl border border-cyan-500/25 bg-slate-900/65 p-4 transition duration-200 hover:border-indigo-400/60 hover:shadow-[0_0_24px_rgba(99,102,241,0.2)] shadow-[0_0_18px_rgba(34,211,238,0.08)]"
+                  className="min-w-0 rounded-xl border border-cyan-500/25 bg-slate-900/65 p-4 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition duration-200 hover:border-indigo-400/60 hover:shadow-[0_0_24px_rgba(99,102,241,0.2)]"
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-100">{task.config.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-100">{task.config.name}</p>
                       <p className="mt-1 inline-flex items-center gap-1 font-mono text-xs text-cyan-300">
                         <Clock3 className="h-3 w-3" />
                         {scheduleExpr}
@@ -847,20 +847,22 @@ export default function TasksView({ agents }: TasksViewProps) {
                     </span>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-400">
+                  <div className="min-w-0 space-y-1 text-xs text-slate-400">
                     <p>Agent: {assignedAgent?.name ?? task.config.agentId ?? "default"}</p>
                     <p>
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
-                    <p className="line-clamp-2 text-slate-500">{payloadText}</p>
+                    <p className="line-clamp-2 break-words text-slate-500 [overflow-wrap:anywhere]">
+                      {payloadText}
+                    </p>
                     {renderRuntimeInfo(task)}
                   </div>
 
-                  <div className="mt-4 flex items-center gap-1.5">
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => runNow(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-indigo-500/35 bg-indigo-500/12 px-2 py-1 text-[10px] font-medium text-indigo-200 transition hover:bg-indigo-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-indigo-500/35 bg-indigo-500/12 px-2 py-1 text-[10px] font-medium text-indigo-200 transition hover:bg-indigo-500/20"
                     >
                       <Play className="h-3 w-3" />
                       Run
@@ -868,7 +870,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => toggleTask(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-emerald-500/35 bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
                     >
                       <CheckCircle2 className="h-3 w-3" />
                       Enabled
@@ -876,7 +878,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
                     >
                       <Edit3 className="h-3 w-3" />
                       Edit
@@ -884,7 +886,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => setTaskToDeleteId(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
                     >
                       <Trash2 className="h-3 w-3" />
                       Delete
@@ -913,11 +915,11 @@ export default function TasksView({ agents }: TasksViewProps) {
               return (
                 <div
                   key={task.id}
-                  className="rounded-xl border border-cyan-500/25 bg-slate-900/65 p-4 transition duration-200 hover:border-cyan-300/65 hover:shadow-[0_0_24px_rgba(34,211,238,0.2)] shadow-[0_0_18px_rgba(34,211,238,0.08)]"
+                  className="min-w-0 rounded-xl border border-cyan-500/25 bg-slate-900/65 p-4 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition duration-200 hover:border-cyan-300/65 hover:shadow-[0_0_24px_rgba(34,211,238,0.2)]"
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-100">{task.config.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-100">{task.config.name}</p>
                       <p className="mt-1 inline-flex items-center gap-1 font-mono text-xs text-cyan-300">
                         <Clock3 className="h-3 w-3" />
                         {scheduleExpr}
@@ -928,20 +930,22 @@ export default function TasksView({ agents }: TasksViewProps) {
                     </span>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-400">
+                  <div className="min-w-0 space-y-1 text-xs text-slate-400">
                     <p>Agent: {assignedAgent?.name ?? task.config.agentId ?? "default"}</p>
                     <p>
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
-                    <p className="line-clamp-2 text-slate-500">{payloadText}</p>
+                    <p className="line-clamp-2 break-words text-slate-500 [overflow-wrap:anywhere]">
+                      {payloadText}
+                    </p>
                     {renderRuntimeInfo(task)}
                   </div>
 
-                  <div className="mt-4 flex items-center gap-1.5">
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => runNow(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-indigo-500/35 bg-indigo-500/12 px-2 py-1 text-[10px] font-medium text-indigo-200 transition hover:bg-indigo-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-indigo-500/35 bg-indigo-500/12 px-2 py-1 text-[10px] font-medium text-indigo-200 transition hover:bg-indigo-500/20"
                     >
                       <Play className="h-3 w-3" />
                       Run
@@ -949,7 +953,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => toggleTask(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-emerald-500/35 bg-emerald-500/12 px-2 py-1 text-[10px] font-medium text-emerald-300 transition hover:bg-emerald-500/20"
                     >
                       <CheckCircle2 className="h-3 w-3" />
                       Enabled
@@ -957,7 +961,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
                     >
                       <Edit3 className="h-3 w-3" />
                       Edit
@@ -965,7 +969,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => setTaskToDeleteId(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
                     >
                       <Trash2 className="h-3 w-3" />
                       Delete
@@ -994,11 +998,11 @@ export default function TasksView({ agents }: TasksViewProps) {
               return (
                 <div
                   key={task.id}
-                  className="rounded-xl border border-slate-800 bg-slate-900/45 p-4 transition duration-200 hover:border-slate-500/70 hover:shadow-[0_0_18px_rgba(148,163,184,0.14)]"
+                  className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/45 p-4 transition duration-200 hover:border-slate-500/70 hover:shadow-[0_0_18px_rgba(148,163,184,0.14)]"
                 >
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-300">{task.config.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-300">{task.config.name}</p>
                       <p className="mt-1 inline-flex items-center gap-1 font-mono text-xs text-slate-400">
                         <Clock3 className="h-3 w-3" />
                         {scheduleExpr}
@@ -1009,20 +1013,20 @@ export default function TasksView({ agents }: TasksViewProps) {
                     </span>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-500">
+                  <div className="min-w-0 space-y-1 text-xs text-slate-500">
                     <p>Agent: {assignedAgent?.name ?? task.config.agentId ?? "default"}</p>
                     <p>
                       {task.config.sessionTarget} | {task.config.wakeMode ?? "now"}
                     </p>
-                    <p className="line-clamp-2">{payloadText}</p>
+                    <p className="line-clamp-2 break-words [overflow-wrap:anywhere]">{payloadText}</p>
                     {renderRuntimeInfo(task)}
                   </div>
 
-                  <div className="mt-4 flex items-center gap-1.5">
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => toggleTask(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-slate-600 bg-slate-800/80 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-slate-700"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-slate-600 bg-slate-800/80 px-2 py-1 text-[10px] font-medium text-slate-200 transition hover:bg-slate-700"
                     >
                       <CheckCircle2 className="h-3 w-3" />
                       Enable
@@ -1030,7 +1034,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-medium text-cyan-200 transition hover:bg-cyan-500/20"
                     >
                       <Edit3 className="h-3 w-3" />
                       Edit
@@ -1038,7 +1042,7 @@ export default function TasksView({ agents }: TasksViewProps) {
                     <button
                       type="button"
                       onClick={() => setTaskToDeleteId(task.id)}
-                      className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-red-500/35 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-300 transition hover:bg-red-500/20"
                     >
                       <Trash2 className="h-3 w-3" />
                       Delete
