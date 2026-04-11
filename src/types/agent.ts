@@ -52,6 +52,9 @@ export interface Agent {
 // Gateway RPC response types
 // ──────────────────────────────────────────────
 
+/** Model field may be a plain string or an object like { primary, fallback } */
+export type GatewayModel = string | { primary?: string; fallback?: string; id?: string };
+
 /** Single agent entry as returned by agents.list RPC */
 export interface GatewayAgentEntry {
   id: string;
@@ -59,13 +62,21 @@ export interface GatewayAgentEntry {
   default?: boolean;
   workspace?: string;
   agentDir?: string;
-  model?: string;
-  modelType?: string;
+  model?: GatewayModel;
+  modelType?: GatewayModel;
   identity?: AgentIdentity;
   sandbox?: unknown;
   tools?: unknown;
   soulMd?: string;
   memoryMd?: string;
+}
+
+function normalizeModel(m: GatewayModel | undefined): string {
+  if (typeof m === "string") return m;
+  if (m && typeof m === "object") {
+    return m.primary ?? m.id ?? m.fallback ?? "not configured";
+  }
+  return "not configured";
 }
 
 /** Response from agents.list RPC */
@@ -110,7 +121,7 @@ export function gatewayEntryToAgent(entry: GatewayAgentEntry): Agent {
     name: displayName,
     status: "idle",
     currentTask: "Ready",
-    modelType: entry.model ?? entry.modelType ?? "not configured",
+    modelType: normalizeModel(entry.model ?? entry.modelType),
     logs: [],
     soulMd: entry.soulMd ?? `# ${displayName}\n\nOpenClaw Agent`,
     memoryMd: entry.memoryMd ?? "# Memory\n\nAgent Memory",
