@@ -5,6 +5,8 @@ import {
   type AgentAddParams,
   type AgentsListResponse,
   type GatewayAgentEntry,
+  type GatewayAgentsCreateParams,
+  type GatewayAgentsCreateResult,
 } from "@/src/types/agent";
 
 export const runtime = "nodejs";
@@ -73,43 +75,47 @@ export async function GET() {
 }
 
 // ──────────────────────────────────────────────
-// POST /api/agents → agents.add via Gateway RPC
+// POST /api/agents → agents.create via Gateway RPC
 // ──────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as AgentAddParams;
 
-    if (!body.id) {
+    // The Gateway derives the agent id from the name, so the name is what
+    // actually has to be present. Fall back to a caller-supplied id.
+    const name = body.name?.trim() || body.id?.trim();
+    if (!name) {
       return NextResponse.json(
-        { error: "Agent ID is required" },
+        { error: "Agent name is required" },
         { status: 400 },
       );
     }
 
-    // Build workspace path if not provided
     const workspace =
-      body.workspace || `~/.openclaw/workspace-${body.id}`;
+      body.workspace?.trim() || `~/.openclaw/workspace-${body.id?.trim() || name}`;
 
-    // Call Gateway RPC to add the agent
-    const result = await callGatewayRpc<{ agent?: GatewayAgentEntry }>(
-      "agents.add",
-      {
-        id: body.id,
-        name: body.name ?? body.id,
-        workspace,
-        model: body.model,
-        identity: body.identity ?? { name: body.name ?? body.id },
-      },
+    // agents.create validates with additionalProperties: false — only the
+    // fields below may be sent, and identity is flattened to emoji/avatar.
+    const params: GatewayAgentsCreateParams = { name, workspace };
+    if (body.model) params.model = body.model;
+    if (body.identity?.emoji) params.emoji = body.identity.emoji;
+    if (body.identity?.avatar) params.avatar = body.identity.avatar;
+
+    const result = await callGatewayRpc<GatewayAgentsCreateResult>(
+      "agents.create",
+      params,
     );
 
     return NextResponse.json({
       success: true,
-      agent: result.agent ?? {
-        id: body.id,
-        name: body.name ?? body.id,
-        workspace,
-        model: body.model,
+      // Report the id the Gateway actually assigned — it normalizes the name
+      // and may differ from anything the caller suggested.
+      agent: {
+        id: result.agentId,
+        name: result.name,
+        workspace: result.workspace,
+        model: result.model,
       },
     });
   } catch (error) {
