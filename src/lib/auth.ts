@@ -106,6 +106,46 @@ export async function verifyPassword(candidate: string, expected: string): Promi
 }
 
 // ──────────────────────────────────────────────
+// Login rate limiting
+//
+// In-memory and per-process: it resets on restart and does not share state
+// across instances. That matches the deployment model in DEPLOY.md (a single
+// systemd/pm2 process) and is meant as a brake on casual password guessing,
+// not a substitute for keeping ZimZ off the public internet — see the
+// Security section in README.md.
+// ──────────────────────────────────────────────
+
+export const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 10;
+export const LOGIN_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+
+const loginAttempts = new Map<string, number[]>();
+
+/**
+ * Record a login attempt for `key` (typically the client IP) and report
+ * whether it should be refused instead. Callers should invoke this before
+ * checking the password, and call `clearLoginAttempts` after a successful
+ * login so a legitimate user who mistyped a few times is not left throttled.
+ */
+export function registerLoginAttempt(key: string, now: number = Date.now()): boolean {
+  const recent = (loginAttempts.get(key) ?? []).filter(
+    (t) => now - t < LOGIN_RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (recent.length >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS) {
+    loginAttempts.set(key, recent);
+    return true;
+  }
+
+  recent.push(now);
+  loginAttempts.set(key, recent);
+  return false;
+}
+
+export function clearLoginAttempts(key: string): void {
+  loginAttempts.delete(key);
+}
+
+// ──────────────────────────────────────────────
 // Session token: "<base64url(expiryMs)>.<base64url(HMAC(secret, expiryMs))>"
 // ──────────────────────────────────────────────
 

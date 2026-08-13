@@ -3,7 +3,7 @@
 ## 1) Prerequisites
 
 - Ubuntu 24.04 (or similar)
-- Node.js 20 LTS + npm
+- Node.js 24 LTS + npm (matches CI; the Gateway client needs Node's Web Crypto available globally)
 - OpenClaw Gateway running on the VPS
 - Tailscale installed and connected
 
@@ -17,7 +17,15 @@ npm ci
 
 ## 3) Environment
 
-Create `.env` in the project root:
+First generate the session secret — this must run as a shell command, not sit
+inside `.env`, which is read as plain `KEY=VALUE` pairs and does not expand
+`$(...)`:
+
+```bash
+openssl rand -base64 48
+```
+
+Then create `.env` in the project root and paste the generated value in:
 
 ```bash
 OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
@@ -25,7 +33,7 @@ OPENCLAW_GATEWAY_TOKEN=
 
 # Required — see the warning below
 ZIMZ_AUTH_PASSWORD=your-password-here
-ZIMZ_SESSION_SECRET=$(openssl rand -base64 48)
+ZIMZ_SESSION_SECRET=paste-the-generated-value-here
 ```
 
 Use `127.0.0.1` when ZIMZ and OpenClaw Gateway run on the same machine.

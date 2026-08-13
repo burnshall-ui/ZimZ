@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
+  LOGIN_RATE_LIMIT_MAX_ATTEMPTS,
+  LOGIN_RATE_LIMIT_WINDOW_MS,
   SESSION_TTL_MS,
+  clearLoginAttempts,
   createSessionToken,
   getAuthConfig,
   isAllowedOrigin,
+  registerLoginAttempt,
   verifyPassword,
   verifySessionToken,
 } from "@/src/lib/auth";
@@ -133,5 +137,47 @@ describe("isAllowedOrigin", () => {
     expect(isAllowedOrigin("POST", "https://evilzimz.example", "zimz.example", [])).toBe(
       false,
     );
+  });
+});
+
+describe("login rate limiting", () => {
+  // The attempt log is module-level state, so each test uses its own key —
+  // otherwise tests would bleed into each other's counts.
+  let key: string;
+  let seq = 0;
+  beforeEach(() => {
+    key = `test-key-${seq++}`;
+  });
+
+  it("allows attempts up to the limit and then refuses", () => {
+    for (let i = 0; i < LOGIN_RATE_LIMIT_MAX_ATTEMPTS; i++) {
+      expect(registerLoginAttempt(key), `attempt ${i + 1}`).toBe(false);
+    }
+    expect(registerLoginAttempt(key)).toBe(true);
+  });
+
+  it("tracks keys independently", () => {
+    for (let i = 0; i < LOGIN_RATE_LIMIT_MAX_ATTEMPTS; i++) registerLoginAttempt(key);
+    expect(registerLoginAttempt(key)).toBe(true);
+    expect(registerLoginAttempt(`${key}-other`)).toBe(false);
+  });
+
+  it("forgets attempts once the window has passed", () => {
+    const start = Date.now();
+    for (let i = 0; i < LOGIN_RATE_LIMIT_MAX_ATTEMPTS; i++) {
+      registerLoginAttempt(key, start);
+    }
+    expect(registerLoginAttempt(key, start)).toBe(true);
+
+    const afterWindow = start + LOGIN_RATE_LIMIT_WINDOW_MS + 1;
+    expect(registerLoginAttempt(key, afterWindow)).toBe(false);
+  });
+
+  it("clearLoginAttempts resets the count for that key", () => {
+    for (let i = 0; i < LOGIN_RATE_LIMIT_MAX_ATTEMPTS; i++) registerLoginAttempt(key);
+    expect(registerLoginAttempt(key)).toBe(true);
+
+    clearLoginAttempts(key);
+    expect(registerLoginAttempt(key)).toBe(false);
   });
 });

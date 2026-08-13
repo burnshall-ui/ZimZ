@@ -43,7 +43,7 @@ Built for operators who run OpenClaw on a VPS or homelab and want a clean overvi
 
 ## Features
 
-**Agent Management** — Add, inspect, configure, and delete agents directly from the dashboard. Each action maps to a Gateway RPC call (`agents.add`, `agents.list`, `agents.update`, `agents.delete`).
+**Agent Management** — Add, inspect, configure, and delete agents directly from the dashboard. Each action maps to a Gateway RPC call (`agents.create`, `agents.list`, `agents.update`, `agents.delete`).
 
 **Live Status** — Persistent WebSocket connection to the Gateway streams events (`agent`, `heartbeat`, `chat`, `presence`) via Server-Sent Events to the browser. Agent cards update in real-time without refresh.
 
@@ -113,6 +113,10 @@ jobs. Two things guard that:
 - **Origin check.** Mutating requests must carry a same-origin `Origin` header.
   Without it a cross-origin `POST` with `Content-Type: text/plain` would reach
   the route handlers as a CORS simple request, no preflight involved.
+- **Login rate limiting.** `/api/auth/login` allows 10 attempts per client
+  per 5 minutes, in-memory and per-process. It resets on restart and doesn't
+  span multiple instances, so treat it as a brake on casual guessing, not a
+  hard limit.
 
 This is a single shared password, not a user system. Treat it as a lock on the
 door, not as an audit trail, and keep ZIMZ inside a tailnet or behind an
@@ -127,7 +131,7 @@ All communication with OpenClaw runs through the Gateway WebSocket — no CLI ex
 | Route | Method | Gateway RPC |
 |-------|--------|-------------|
 | `GET /api/agents` | List agents + workspace files | `agents.list` + `agents.files.get` |
-| `POST /api/agents` | Add agent | `agents.add` |
+| `POST /api/agents` | Add agent | `agents.create` |
 | `GET /api/agents/:id` | Get agent + workspace files | `agents.list` + `agents.files.get` |
 | `PATCH /api/agents/:id` | Update agent / save files | `agents.update` + `agents.files.set` |
 | `DELETE /api/agents/:id` | Delete agent | `agents.delete` |

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Set the ZimZ dashboard password.
 #
-# Prompts without echo, rewrites ZIMZ_AUTH_PASSWORD in .env and restarts the
-# pm2 process. The password is never passed as an argument, so it stays out of
-# the shell history and the process list.
+# Prompts without echo, rewrites ZIMZ_AUTH_PASSWORD in .env and restarts
+# whichever process manager is actually running zimz (systemd or pm2). The
+# password is never passed as an argument, so it stays out of the shell
+# history and the process list.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -25,7 +26,9 @@ if [ ${#pw} -lt 8 ]; then
   exit 1
 fi
 
-cp .env ".env.bak.$(date +%s)"
+backup=".env.bak.$(date +%s)"
+cp .env "$backup"
+chmod 600 "$backup"
 
 # Rewrite via the environment rather than a sed pattern, so characters that are
 # special to sed (/, &, \) survive intact.
@@ -50,8 +53,25 @@ with open(".env", "w") as fh:
 PY
 
 chmod 600 .env
-pm2 restart zimz >/dev/null
 
-echo "Password updated and zimz restarted."
+# DEPLOY.md recommends systemd; pm2 is the alternative some setups use
+# instead. Try both rather than hard-coding one, so the helper works either
+# way — restarting the wrong (inactive) manager is a no-op, not a failure.
+restarted=""
+if command -v systemctl >/dev/null && systemctl is-active --quiet zimz 2>/dev/null; then
+  sudo systemctl restart zimz
+  restarted="systemd"
+elif command -v pm2 >/dev/null && pm2 describe zimz >/dev/null 2>&1; then
+  pm2 restart zimz >/dev/null
+  restarted="pm2"
+fi
+
+if [ -z "$restarted" ]; then
+  echo "Password updated, but no running zimz service found under systemd or pm2." >&2
+  echo "Restart it manually (see DEPLOY.md) for the new password to take effect." >&2
+  exit 0
+fi
+
+echo "Password updated and zimz restarted ($restarted)."
 echo "Existing sessions stay valid — they are signed with ZIMZ_SESSION_SECRET,"
 echo "which is unchanged. Rotate that too if you need to sign everyone out."
