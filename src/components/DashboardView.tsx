@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
   CalendarClock,
   LayoutGrid,
   Map,
@@ -57,6 +58,7 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [gatewayError, setGatewayError] = useState<string | null>(null);
 
   // Live Gateway events
   const { gatewayConnected, getAgentUpdate } = useGatewayEvents();
@@ -89,8 +91,16 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
     const refresh = async () => {
       try {
         const res = await fetch("/api/agents");
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+
+        // The route answers 502 when the Gateway is unreachable. Surfacing that
+        // matters: swallowing it made an outage look like an empty cluster.
+        if (!res.ok || data.error) {
+          setGatewayError(data.error ?? `Gateway request failed (${res.status})`);
+          return;
+        }
+        setGatewayError(null);
+
         if (data.agents && Array.isArray(data.agents)) {
           setAgents((prev) => {
             // Merge: keep live status from existing agents
@@ -111,10 +121,13 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
           });
         }
       } catch {
-        // Silent fail – don't break the dashboard
+        setGatewayError("Could not reach the ZimZ server");
       }
     };
 
+    // Run once immediately so a broken Gateway shows up on load rather than
+    // after the first 30s tick.
+    refresh();
     const interval = setInterval(refresh, 30_000);
     return () => clearInterval(interval);
   }, []);
@@ -231,6 +244,22 @@ export default function DashboardView({ agents: initialAgents }: DashboardViewPr
             Monitor active and waiting agents, inspect logs in real-time, and
             adjust core prompt parameters directly per agent.
           </p>
+
+          {/* Gateway failure banner — an empty grid must never be mistaken
+              for a healthy cluster with no agents. */}
+          {gatewayError && (
+            <div
+              role="alert"
+              className="mt-5 flex items-start gap-3 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                <strong className="font-semibold">Gateway unreachable.</strong>{" "}
+                Agent data below may be stale or empty.{" "}
+                <span className="font-mono text-xs text-rose-300/90">{gatewayError}</span>
+              </span>
+            </div>
+          )}
 
           {/* Cluster status cards */}
           <div className="mt-5 grid gap-3 text-xs text-slate-300 md:grid-cols-3">

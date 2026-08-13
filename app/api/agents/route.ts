@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import {
   gatewayEntryToAgent,
   type AgentAddParams,
@@ -27,7 +27,7 @@ interface AgentFileGetResponse {
 /** Fetch a workspace file via Gateway RPC, return undefined on failure */
 async function getAgentFile(agentId: string, name: string): Promise<string | undefined> {
   try {
-    const res = await callGatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
+    const res = await gatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
     if (res.file?.missing) return undefined;
     return res.file?.content;
   } catch {
@@ -50,7 +50,7 @@ async function enrichWithWorkspaceFiles(entry: GatewayAgentEntry): Promise<Gatew
 
 export async function GET() {
   try {
-    const result = await callGatewayRpc<AgentsListResponse>("agents.list");
+    const result = await gatewayRpc<AgentsListResponse>("agents.list");
 
     // OpenClaw may return agents under "agents" or "list" key
     const rawAgents: GatewayAgentEntry[] = result.agents ?? result.list ?? [];
@@ -62,14 +62,16 @@ export async function GET() {
   } catch (error) {
     console.error("[/api/agents GET] Gateway RPC failed:", error);
 
-    // Return error with empty agents so the UI still renders
+    // 502, not 200. Answering 200 with an empty list made a total Gateway
+    // outage look like "no agents configured" and hid a protocol mismatch for
+    // two days. The UI renders the error state instead.
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to list agents",
         agents: [],
         source: "error",
       },
-      { status: 200 }, // 200 so frontend doesn't break
+      { status: 502 },
     );
   }
 }
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
     if (body.identity?.emoji) params.emoji = body.identity.emoji;
     if (body.identity?.avatar) params.avatar = body.identity.avatar;
 
-    const result = await callGatewayRpc<GatewayAgentsCreateResult>(
+    const result = await gatewayRpc<GatewayAgentsCreateResult>(
       "agents.create",
       params,
     );

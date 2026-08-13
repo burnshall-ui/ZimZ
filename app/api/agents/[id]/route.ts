@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import type {
   AgentUpdateParams,
   AgentsListResponse,
@@ -36,7 +36,7 @@ interface AgentFileGetResponse {
 /** Fetch a workspace file via Gateway RPC, return undefined on failure */
 async function getAgentFile(agentId: string, name: string): Promise<string | undefined> {
   try {
-    const res = await callGatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
+    const res = await gatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
     if (res.file?.missing) return undefined;
     return res.file?.content;
   } catch {
@@ -62,7 +62,7 @@ export async function DELETE(_request: Request, context: ParamsContext) {
     // The Gateway keys agents by `agentId` and gates file removal behind
     // `deleteFiles`. Leaving that off keeps the workspace on disk, so a
     // mistaken delete stays recoverable.
-    await callGatewayRpc<unknown>("agents.delete", {
+    await gatewayRpc<unknown>("agents.delete", {
       agentId: id,
     } satisfies GatewayAgentsDeleteParams);
 
@@ -90,7 +90,7 @@ export async function GET(_request: Request, context: ParamsContext) {
   try {
     const { id } = await context.params;
 
-    const result = await callGatewayRpc<AgentsListResponse>("agents.list");
+    const result = await gatewayRpc<AgentsListResponse>("agents.list");
     const rawAgents: GatewayAgentEntry[] = result.agents ?? result.list ?? [];
     const agent = rawAgents.find((a) => a.id === id);
 
@@ -143,12 +143,12 @@ export async function PATCH(request: Request, context: ParamsContext) {
     const fileWrites: Promise<unknown>[] = [];
     if (soulMd !== undefined) {
       fileWrites.push(
-        callGatewayRpc("agents.files.set", { agentId: id, name: "SOUL.md", content: soulMd }),
+        gatewayRpc("agents.files.set", { agentId: id, name: "SOUL.md", content: soulMd }),
       );
     }
     if (memoryMd !== undefined) {
       fileWrites.push(
-        callGatewayRpc("agents.files.set", { agentId: id, name: "MEMORY.md", content: memoryMd }),
+        gatewayRpc("agents.files.set", { agentId: id, name: "MEMORY.md", content: memoryMd }),
       );
     }
     if (fileWrites.length > 0) {
@@ -158,7 +158,7 @@ export async function PATCH(request: Request, context: ParamsContext) {
     // Forward other fields to Gateway RPC if present
     const hasRpcFields = Object.keys(rpcParams).length > 0;
     if (hasRpcFields) {
-      await callGatewayRpc<unknown>("agents.update", {
+      await gatewayRpc<unknown>("agents.update", {
         agentId: id,
         ...rpcParams,
       } satisfies GatewayAgentsUpdateParams);

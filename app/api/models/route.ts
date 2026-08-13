@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 
 interface ModelEntry {
   id: string;
@@ -28,7 +28,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     // Try models.list RPC first (primary method)
-    const result = await callGatewayRpc<ModelsListResponse>("models.list");
+    const result = await gatewayRpc<ModelsListResponse>("models.list");
 
     let models: ModelEntry[] = [];
 
@@ -58,7 +58,7 @@ export async function GET() {
 
     // Fallback: try reading from status which may include model info
     try {
-      const status = await callGatewayRpc<{
+      const status = await gatewayRpc<{
         config?: { agents?: { defaults?: { models?: Record<string, { alias?: string }> } } };
       }>("status");
 
@@ -70,7 +70,7 @@ export async function GET() {
 
       return NextResponse.json({ models, source: "status-fallback" });
     } catch {
-      // Both methods failed
+      // Both methods failed — report it as such rather than as an empty catalog.
       return NextResponse.json(
         {
           error:
@@ -79,7 +79,7 @@ export async function GET() {
               : "Failed to load models",
           models: [],
         },
-        { status: 200 },
+        { status: 502 },
       );
     }
   }

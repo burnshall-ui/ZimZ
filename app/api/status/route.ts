@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 
 export const runtime = "nodejs";
 
@@ -8,36 +8,35 @@ export const runtime = "nodejs";
 // ──────────────────────────────────────────────
 
 export async function GET() {
-  try {
-    // Fetch health and presence in parallel
-    const [health, presence] = await Promise.allSettled([
-      callGatewayRpc<Record<string, unknown>>("health"),
-      callGatewayRpc<Record<string, unknown>>("system-presence"),
-    ]);
+  // Fetch health and presence in parallel. allSettled never rejects, so
+  // reachability has to be derived from the results — it used to be hardcoded
+  // to true, which reported a dead Gateway as healthy.
+  const [health, presence] = await Promise.allSettled([
+    gatewayRpc<Record<string, unknown>>("health"),
+    gatewayRpc<Record<string, unknown>>("system-presence"),
+  ]);
 
-    return NextResponse.json({
-      gateway: {
-        reachable: true,
-        health:
-          health.status === "fulfilled" ? health.value : null,
-        presence:
-          presence.status === "fulfilled" ? presence.value : null,
-      },
-      ts: Date.now(),
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        gateway: {
-          reachable: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Gateway unreachable",
-        },
-        ts: Date.now(),
-      },
-      { status: 200 }, // Still 200 so dashboard renders
-    );
+  const reachable = health.status === "fulfilled";
+  if (!reachable) {
+    console.error("[/api/status] Gateway health check failed:", health.reason);
   }
+
+  return NextResponse.json({
+    gateway: {
+      reachable,
+      health: health.status === "fulfilled" ? health.value : null,
+      presence: presence.status === "fulfilled" ? presence.value : null,
+      ...(reachable
+        ? {}
+        : {
+            error:
+              health.reason instanceof Error
+                ? health.reason.message
+                : "Gateway unreachable",
+          }),
+    },
+    ts: Date.now(),
+  });
+  // Deliberately 200: this endpoint reports health, so an unreachable Gateway
+  // is a valid answer rather than a failure of the endpoint itself.
 }

@@ -1,5 +1,5 @@
 import DashboardView from "@/src/components/DashboardView";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import {
   gatewayEntryToAgent,
   type Agent,
@@ -17,7 +17,7 @@ interface AgentFileGetResponse {
 
 async function getAgentFile(agentId: string, name: string): Promise<string | undefined> {
   try {
-    const res = await callGatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
+    const res = await gatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
     if (res.file?.missing) return undefined;
     return res.file?.content;
   } catch {
@@ -28,7 +28,7 @@ async function getAgentFile(agentId: string, name: string): Promise<string | und
 async function getAgents(): Promise<Agent[]> {
   try {
     // Direct Gateway RPC call (server-side, no self-fetch needed)
-    const result = await callGatewayRpc<AgentsListResponse>("agents.list");
+    const result = await gatewayRpc<AgentsListResponse>("agents.list");
     const rawAgents: GatewayAgentEntry[] = result.agents ?? result.list ?? [];
 
     // Enrich each agent with SOUL.md and MEMORY.md
