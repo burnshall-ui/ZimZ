@@ -2,7 +2,9 @@ import { WebSocket } from "ws";
 import { EventEmitter } from "events";
 import * as crypto from "crypto";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
+import { version as CLIENT_VERSION } from "@/package.json";
 
 // ──────────────────────────────────────────────
 // Types
@@ -72,7 +74,7 @@ let cachedDeviceIdentity: DeviceIdentity | null | undefined;
 function loadDeviceIdentity(): DeviceIdentity | null {
   if (cachedDeviceIdentity !== undefined) return cachedDeviceIdentity;
   try {
-    const stateDir = process.env.OPENCLAW_STATE_DIR ?? path.join(process.env.HOME ?? "/home/canni", ".openclaw");
+    const stateDir = process.env.OPENCLAW_STATE_DIR ?? path.join(process.env.HOME ?? os.homedir(), ".openclaw");
     const deviceJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device.json"), "utf8"));
     const authJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device-auth.json"), "utf8"));
     const token = authJson.tokens?.operator?.token ?? "";
@@ -96,14 +98,16 @@ function buildConnectParams(clientId: string, nonce?: string) {
   const device = loadDeviceIdentity();
 
   const params: Record<string, unknown> = {
+    // Gateway accepts a connection when maxProtocol >= 4 && minProtocol <= 4.
+    // Keep the lower bound at 3 so older Gateways still negotiate.
     minProtocol: 3,
-    maxProtocol: 3,
+    maxProtocol: 4,
     auth: getAuthParams(),
     client: {
       id: "gateway-client",
       platform: "linux",
       mode: "backend",
-      version: "2026.2.17",
+      version: CLIENT_VERSION,
       instanceId: clientId,
     },
     role,
