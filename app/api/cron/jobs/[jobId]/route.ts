@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import type { OpenClawCronUpdateParams } from "@/src/types/cron";
 
 interface ParamsContext {
@@ -12,7 +12,7 @@ export async function PATCH(request: Request, context: ParamsContext) {
   try {
     const { jobId } = await context.params;
     const body = (await request.json()) as OpenClawCronUpdateParams["patch"];
-    await callGatewayRpc("cron.update", { jobId, patch: body });
+    await gatewayRpc("cron.update", { jobId, patch: body });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message =
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, context: ParamsContext) {
 export async function DELETE(_: Request, context: ParamsContext) {
   try {
     const { jobId } = await context.params;
-    await callGatewayRpc("cron.remove", { jobId });
+    await gatewayRpc("cron.remove", { jobId });
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message =

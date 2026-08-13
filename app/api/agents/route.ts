@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import {
   gatewayEntryToAgent,
   type AgentAddParams,
   type AgentsListResponse,
   type GatewayAgentEntry,
+  type GatewayAgentsCreateParams,
+  type GatewayAgentsCreateResult,
 } from "@/src/types/agent";
 
 export const runtime = "nodejs";
@@ -25,7 +27,7 @@ interface AgentFileGetResponse {
 /** Fetch a workspace file via Gateway RPC, return undefined on failure */
 async function getAgentFile(agentId: string, name: string): Promise<string | undefined> {
   try {
-    const res = await callGatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
+    const res = await gatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
     if (res.file?.missing) return undefined;
     return res.file?.content;
   } catch {
@@ -48,7 +50,7 @@ async function enrichWithWorkspaceFiles(entry: GatewayAgentEntry): Promise<Gatew
 
 export async function GET() {
   try {
-    const result = await callGatewayRpc<AgentsListResponse>("agents.list");
+    const result = await gatewayRpc<AgentsListResponse>("agents.list");
 
     // OpenClaw may return agents under "agents" or "list" key
     const rawAgents: GatewayAgentEntry[] = result.agents ?? result.list ?? [];
@@ -60,56 +62,62 @@ export async function GET() {
   } catch (error) {
     console.error("[/api/agents GET] Gateway RPC failed:", error);
 
-    // Return error with empty agents so the UI still renders
+    // 502, not 200. Answering 200 with an empty list made a total Gateway
+    // outage look like "no agents configured" and hid a protocol mismatch for
+    // two days. The UI renders the error state instead.
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to list agents",
         agents: [],
         source: "error",
       },
-      { status: 200 }, // 200 so frontend doesn't break
+      { status: 502 },
     );
   }
 }
 
 // ──────────────────────────────────────────────
-// POST /api/agents → agents.add via Gateway RPC
+// POST /api/agents → agents.create via Gateway RPC
 // ──────────────────────────────────────────────
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as AgentAddParams;
 
-    if (!body.id) {
+    // The Gateway derives the agent id from the name, so the name is what
+    // actually has to be present. Fall back to a caller-supplied id.
+    const name = body.name?.trim() || body.id?.trim();
+    if (!name) {
       return NextResponse.json(
-        { error: "Agent ID is required" },
+        { error: "Agent name is required" },
         { status: 400 },
       );
     }
 
-    // Build workspace path if not provided
     const workspace =
-      body.workspace || `~/.openclaw/workspace-${body.id}`;
+      body.workspace?.trim() || `~/.openclaw/workspace-${body.id?.trim() || name}`;
 
-    // Call Gateway RPC to add the agent
-    const result = await callGatewayRpc<{ agent?: GatewayAgentEntry }>(
-      "agents.add",
-      {
-        id: body.id,
-        name: body.name ?? body.id,
-        workspace,
-        model: body.model,
-        identity: body.identity ?? { name: body.name ?? body.id },
-      },
+    // agents.create validates with additionalProperties: false — only the
+    // fields below may be sent, and identity is flattened to emoji/avatar.
+    const params: GatewayAgentsCreateParams = { name, workspace };
+    if (body.model) params.model = body.model;
+    if (body.identity?.emoji) params.emoji = body.identity.emoji;
+    if (body.identity?.avatar) params.avatar = body.identity.avatar;
+
+    const result = await gatewayRpc<GatewayAgentsCreateResult>(
+      "agents.create",
+      params,
     );
 
     return NextResponse.json({
       success: true,
-      agent: result.agent ?? {
-        id: body.id,
-        name: body.name ?? body.id,
-        workspace,
-        model: body.model,
+      // Report the id the Gateway actually assigned — it normalizes the name
+      // and may differ from anything the caller suggested.
+      agent: {
+        id: result.agentId,
+        name: result.name,
+        workspace: result.workspace,
+        model: result.model,
       },
     });
   } catch (error) {

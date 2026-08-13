@@ -85,27 +85,66 @@ export interface AgentsListResponse {
   list?: GatewayAgentEntry[];
 }
 
-/** Params for agents.add RPC */
+// ──────────────────────────────────────────────
+// Request bodies accepted by the ZimZ API routes
+// ──────────────────────────────────────────────
+
+/** Body for POST /api/agents */
 export interface AgentAddParams {
-  id: string;
+  id?: string;
   name?: string;
   workspace?: string;
   model?: string;
   identity?: AgentIdentity;
 }
 
-/** Params for agents.delete RPC */
-export interface AgentDeleteParams {
-  id: string;
-  force?: boolean;
+/** Body for PATCH /api/agents/[id] — the id comes from the path, never the body */
+export interface AgentUpdateParams {
+  model?: string;
+  name?: string;
+  identity?: AgentIdentity;
 }
 
-/** Params for agents.update / config update RPC */
-export interface AgentUpdateParams {
-  id: string;
+// ──────────────────────────────────────────────
+// Gateway RPC params
+//
+// The Gateway validates these with additionalProperties: false, so the shapes
+// below must match its schema exactly. Note that it keys agents by `agentId`,
+// not `id`, and takes identity as flat `emoji` / `avatar` fields.
+// ──────────────────────────────────────────────
+
+/** Params for agents.create — the Gateway derives agentId from `name`. */
+export interface GatewayAgentsCreateParams {
+  name: string;
+  workspace: string;
   model?: string;
-  identity?: AgentIdentity;
+  emoji?: string;
+  avatar?: string;
+}
+
+/** Result of agents.create */
+export interface GatewayAgentsCreateResult {
+  ok: true;
+  agentId: string;
+  name: string;
+  workspace: string;
+  model?: string;
+}
+
+/** Params for agents.update */
+export interface GatewayAgentsUpdateParams {
+  agentId: string;
   name?: string;
+  workspace?: string;
+  model?: string;
+  emoji?: string;
+  avatar?: string;
+}
+
+/** Params for agents.delete */
+export interface GatewayAgentsDeleteParams {
+  agentId: string;
+  deleteFiles?: boolean;
 }
 
 // ──────────────────────────────────────────────

@@ -2,7 +2,9 @@ import { WebSocket } from "ws";
 import { EventEmitter } from "events";
 import * as crypto from "crypto";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
+import { version as CLIENT_VERSION } from "@/package.json";
 
 // ──────────────────────────────────────────────
 // Types
@@ -67,12 +69,19 @@ interface DeviceIdentity {
   token: string;
 }
 
+const DEVICE_IDENTITY_TTL_MS = 60_000;
+
 let cachedDeviceIdentity: DeviceIdentity | null | undefined;
+let cachedDeviceIdentityAt = 0;
 
 function loadDeviceIdentity(): DeviceIdentity | null {
-  if (cachedDeviceIdentity !== undefined) return cachedDeviceIdentity;
+  // Re-read periodically: `device.token.rotate` rewrites device-auth.json, and
+  // a cache held for the process lifetime would keep using the revoked token.
+  const fresh = Date.now() - cachedDeviceIdentityAt < DEVICE_IDENTITY_TTL_MS;
+  if (cachedDeviceIdentity !== undefined && fresh) return cachedDeviceIdentity;
+  cachedDeviceIdentityAt = Date.now();
   try {
-    const stateDir = process.env.OPENCLAW_STATE_DIR ?? path.join(process.env.HOME ?? "/home/canni", ".openclaw");
+    const stateDir = process.env.OPENCLAW_STATE_DIR ?? path.join(process.env.HOME ?? os.homedir(), ".openclaw");
     const deviceJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device.json"), "utf8"));
     const authJson = JSON.parse(fs.readFileSync(path.join(stateDir, "identity", "device-auth.json"), "utf8"));
     const token = authJson.tokens?.operator?.token ?? "";
@@ -96,14 +105,16 @@ function buildConnectParams(clientId: string, nonce?: string) {
   const device = loadDeviceIdentity();
 
   const params: Record<string, unknown> = {
+    // Gateway accepts a connection when maxProtocol >= 4 && minProtocol <= 4.
+    // Keep the lower bound at 3 so older Gateways still negotiate.
     minProtocol: 3,
-    maxProtocol: 3,
+    maxProtocol: 4,
     auth: getAuthParams(),
     client: {
       id: "gateway-client",
       platform: "linux",
       mode: "backend",
-      version: "2026.2.17",
+      version: CLIENT_VERSION,
       instanceId: clientId,
     },
     role,
@@ -259,6 +270,13 @@ export async function fireGatewayRpc(
       reject(new Error(`Gateway connect timeout for method "${method}"`));
     }, REQUEST_TIMEOUT_MS);
 
+    // Detaches every listener so the deliberate close below cannot reject a
+    // promise that has already resolved.
+    const cleanup = () => {
+      clearTimeout(timeout);
+      ws.removeAllListeners();
+    };
+
     ws.on("message", (raw) => {
       let msg: GatewayFrame;
       try {
@@ -291,11 +309,11 @@ export async function fireGatewayRpc(
             }),
           );
           // Resolve immediately after sending — no response expected
-          clearTimeout(timeout);
+          cleanup();
           setTimeout(() => ws.close(), 500);
           resolve();
         } else {
-          clearTimeout(timeout);
+          cleanup();
           ws.close();
           reject(new Error(msg.error?.message ?? "Gateway authentication failed"));
         }
@@ -304,12 +322,13 @@ export async function fireGatewayRpc(
     });
 
     ws.on("error", (error) => {
-      clearTimeout(timeout);
+      cleanup();
+      ws.close();
       reject(error);
     });
 
     ws.on("close", () => {
-      clearTimeout(timeout);
+      cleanup();
       reject(new Error(`Gateway connection closed unexpectedly during "${method}"`));
     });
   });
@@ -335,6 +354,10 @@ class GatewayEventManager extends EventEmitter {
     ) {
       return;
     }
+
+    // A reconnect is already scheduled. Without this, every gatewayRpc() call
+    // made while the Gateway is down would open a socket racing that timer.
+    if (this.reconnectTimer) return;
 
     const gatewayUrl = getGatewayUrl();
     console.log("[GatewayEvents] Connecting to", gatewayUrl);
@@ -433,10 +456,6 @@ class GatewayEventManager extends EventEmitter {
     const requestId = makeRequestId();
 
     return new Promise<T>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error(`Gateway call timeout for "${method}"`));
-      }, REQUEST_TIMEOUT_MS);
-
       const handler = (raw: Buffer | string) => {
         let msg: GatewayFrame;
         try {
@@ -455,6 +474,13 @@ class GatewayEventManager extends EventEmitter {
           }
         }
       };
+
+      // Detach on timeout too, or every timed-out call leaves a listener
+      // behind on the shared socket.
+      const timeout = setTimeout(() => {
+        this.ws?.removeListener("message", handler);
+        reject(new Error(`Gateway call timeout for "${method}"`));
+      }, REQUEST_TIMEOUT_MS);
 
       this.ws!.on("message", handler);
       this.ws!.send(
@@ -488,3 +514,35 @@ class GatewayEventManager extends EventEmitter {
 
 // Singleton – survives across API route invocations in `next start`
 export const gatewayEvents = new GatewayEventManager();
+
+// Each SSE client registers four listeners, so Node's default cap of 10 would
+// start printing MaxListenersExceededWarning at the third open browser tab.
+gatewayEvents.setMaxListeners(0);
+
+// ──────────────────────────────────────────────
+// Preferred RPC entry point for API routes
+// ──────────────────────────────────────────────
+
+/**
+ * Call a Gateway method, reusing the persistent connection when it is up.
+ *
+ * `callGatewayRpc` opens a fresh WebSocket and runs the full handshake —
+ * including an Ed25519 signature — for every single call. Listing agents costs
+ * 1 + 2N of those, so the shared socket is used whenever it is available.
+ *
+ * The fallback is only taken when the persistent connection is down *before*
+ * the call goes out. A call that fails after being sent is never retried:
+ * methods like agents.delete and cron.run are not idempotent.
+ */
+export async function gatewayRpc<T = unknown>(
+  method: string,
+  params?: unknown,
+): Promise<T> {
+  gatewayEvents.connect(); // no-op when already open or connecting
+
+  if (gatewayEvents.isConnected()) {
+    return gatewayEvents.call<T>(method, params);
+  }
+
+  return callGatewayRpc<T>(method, params);
+}

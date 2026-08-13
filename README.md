@@ -94,7 +94,29 @@ OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
 # If your Gateway requires auth:
 OPENCLAW_GATEWAY_TOKEN=
 OPENCLAW_GATEWAY_PASSWORD=
+
+# Required — ZIMZ answers 503 until both are set
+ZIMZ_AUTH_PASSWORD=your-password-here
+ZIMZ_SESSION_SECRET=   # openssl rand -base64 48
 ```
+
+## Security
+
+ZIMZ talks to the Gateway with `operator.admin` scope, so every API route can
+create, modify and delete agents, write `SOUL.md` / `MEMORY.md` and trigger cron
+jobs. Two things guard that:
+
+- **Password session.** All routes except `/login` and `/api/auth/login` require
+  a signed, `HttpOnly` session cookie. `ZIMZ_AUTH_PASSWORD` and
+  `ZIMZ_SESSION_SECRET` are mandatory — an unconfigured instance serves HTTP 503
+  rather than running unauthenticated.
+- **Origin check.** Mutating requests must carry a same-origin `Origin` header.
+  Without it a cross-origin `POST` with `Content-Type: text/plain` would reach
+  the route handlers as a CORS simple request, no preflight involved.
+
+This is a single shared password, not a user system. Treat it as a lock on the
+door, not as an audit trail, and keep ZIMZ inside a tailnet or behind an
+authenticating reverse proxy anyway.
 
 ## Gateway RPC Integration
 

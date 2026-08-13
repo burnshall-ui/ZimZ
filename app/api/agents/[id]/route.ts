@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import type {
-  AgentDeleteParams,
   AgentUpdateParams,
   AgentsListResponse,
   GatewayAgentEntry,
+  GatewayAgentsDeleteParams,
+  GatewayAgentsUpdateParams,
 } from "@/src/types/agent";
+
+/** Body accepted by PATCH — Gateway fields plus the two workspace files. */
+type AgentPatchBody = Partial<AgentUpdateParams> & {
+  soulMd?: string;
+  memoryMd?: string;
+};
 
 interface ParamsContext {
   params: Promise<{ id: string }>;
@@ -29,7 +36,7 @@ interface AgentFileGetResponse {
 /** Fetch a workspace file via Gateway RPC, return undefined on failure */
 async function getAgentFile(agentId: string, name: string): Promise<string | undefined> {
   try {
-    const res = await callGatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
+    const res = await gatewayRpc<AgentFileGetResponse>("agents.files.get", { agentId, name });
     if (res.file?.missing) return undefined;
     return res.file?.content;
   } catch {
@@ -52,10 +59,12 @@ export async function DELETE(_request: Request, context: ParamsContext) {
       );
     }
 
-    await callGatewayRpc<unknown>("agents.delete", {
-      id,
-      force: true,
-    } satisfies AgentDeleteParams);
+    // The Gateway keys agents by `agentId` and gates file removal behind
+    // `deleteFiles`. Leaving that off keeps the workspace on disk, so a
+    // mistaken delete stays recoverable.
+    await gatewayRpc<unknown>("agents.delete", {
+      agentId: id,
+    } satisfies GatewayAgentsDeleteParams);
 
     return NextResponse.json({
       success: true,
@@ -81,7 +90,7 @@ export async function GET(_request: Request, context: ParamsContext) {
   try {
     const { id } = await context.params;
 
-    const result = await callGatewayRpc<AgentsListResponse>("agents.list");
+    const result = await gatewayRpc<AgentsListResponse>("agents.list");
     const rawAgents: GatewayAgentEntry[] = result.agents ?? result.list ?? [];
     const agent = rawAgents.find((a) => a.id === id);
 
@@ -117,24 +126,29 @@ export async function GET(_request: Request, context: ParamsContext) {
 export async function PATCH(request: Request, context: ParamsContext) {
   try {
     const { id } = await context.params;
-    const body = (await request.json()) as Partial<AgentUpdateParams> & {
-      soulMd?: string;
-      memoryMd?: string;
-    };
+    const body = (await request.json()) as AgentPatchBody;
 
-    // Strip `id` from body to prevent path-ID override (security fix)
-    const { soulMd, memoryMd, id: _bodyId, ...rpcParams } = body;
+    const { soulMd, memoryMd } = body;
+
+    // Allowlist the fields forwarded to agents.update. The agent id comes from
+    // the path, never the body, and the Gateway rejects unknown properties, so
+    // identity is flattened to the emoji/avatar fields it accepts.
+    const rpcParams: Omit<GatewayAgentsUpdateParams, "agentId"> = {};
+    if (body.model !== undefined) rpcParams.model = body.model;
+    if (body.name !== undefined) rpcParams.name = body.name;
+    if (body.identity?.emoji !== undefined) rpcParams.emoji = body.identity.emoji;
+    if (body.identity?.avatar !== undefined) rpcParams.avatar = body.identity.avatar;
 
     // Write workspace files via Gateway RPC
     const fileWrites: Promise<unknown>[] = [];
     if (soulMd !== undefined) {
       fileWrites.push(
-        callGatewayRpc("agents.files.set", { agentId: id, name: "SOUL.md", content: soulMd }),
+        gatewayRpc("agents.files.set", { agentId: id, name: "SOUL.md", content: soulMd }),
       );
     }
     if (memoryMd !== undefined) {
       fileWrites.push(
-        callGatewayRpc("agents.files.set", { agentId: id, name: "MEMORY.md", content: memoryMd }),
+        gatewayRpc("agents.files.set", { agentId: id, name: "MEMORY.md", content: memoryMd }),
       );
     }
     if (fileWrites.length > 0) {
@@ -144,10 +158,10 @@ export async function PATCH(request: Request, context: ParamsContext) {
     // Forward other fields to Gateway RPC if present
     const hasRpcFields = Object.keys(rpcParams).length > 0;
     if (hasRpcFields) {
-      await callGatewayRpc<unknown>("agents.update", {
-        id,
+      await gatewayRpc<unknown>("agents.update", {
+        agentId: id,
         ...rpcParams,
-      });
+      } satisfies GatewayAgentsUpdateParams);
     }
 
     return NextResponse.json({ ok: true, agentId: id });

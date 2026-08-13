@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { callGatewayRpc } from "@/src/lib/openclawGateway";
+import { gatewayRpc } from "@/src/lib/openclawGateway";
 import type { OpenClawCronAddParams } from "@/src/types/cron";
 
 interface CronListResult {
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const result = await callGatewayRpc<CronListResult>("cron.list");
+    const result = await gatewayRpc<CronListResult>("cron.list");
     return NextResponse.json({ jobs: result.jobs ?? [] });
   } catch (error) {
     const message =
@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as OpenClawCronAddParams;
-    const result = await callGatewayRpc<CronAddResult>("cron.add", body);
+    const result = await gatewayRpc<CronAddResult>("cron.add", body);
     return NextResponse.json({
       job: result.job ?? null,
       jobId: result.jobId ?? null,

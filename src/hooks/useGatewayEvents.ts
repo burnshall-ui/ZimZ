@@ -219,31 +219,3 @@ export function useGatewayEvents() {
     getAgentUpdate,
   };
 }
-
-// ──────────────────────────────────────────────
-// Helper: map Gateway status strings to our AgentStatus
-// ──────────────────────────────────────────────
-
-function mapAgentStatus(status?: string): AgentStatus {
-  if (!status) return "idle";
-
-  switch (status.toLowerCase()) {
-    case "running":
-    case "working":
-    case "active":
-    case "processing":
-      return "working";
-    case "collaborating":
-    case "routing":
-      return "collaborating";
-    case "waiting":
-    case "pending":
-    case "approval":
-      return "waiting";
-    case "idle":
-    case "ready":
-    case "stopped":
-    default:
-      return "idle";
-  }
-}

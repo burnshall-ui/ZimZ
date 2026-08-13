@@ -22,9 +22,25 @@ Create `.env` in the project root:
 ```bash
 OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
 OPENCLAW_GATEWAY_TOKEN=
+
+# Required — see the warning below
+ZIMZ_AUTH_PASSWORD=your-password-here
+ZIMZ_SESSION_SECRET=$(openssl rand -base64 48)
 ```
 
 Use `127.0.0.1` when ZIMZ and OpenClaw Gateway run on the same machine.
+
+> **ZIMZ connects to the Gateway with `operator.admin` scope.** Anyone who
+> reaches it can create, modify and delete agents, write `SOUL.md` / `MEMORY.md`
+> and run cron jobs. `ZIMZ_AUTH_PASSWORD` and `ZIMZ_SESSION_SECRET` are therefore
+> mandatory: without them every request is answered with HTTP 503. Keep the
+> Gateway bound to `127.0.0.1`, and prefer a tailnet or an authenticating reverse
+> proxy over a public listener.
+
+Optional: `ZIMZ_ALLOWED_ORIGINS` (comma separated) adds origins permitted to send
+`POST`/`PATCH`/`DELETE`. The request's own `Host` is always allowed, so this is
+only needed when the browser reaches ZIMZ under a different hostname than the one
+Next.js sees.
 
 ## 4) Build and run
 

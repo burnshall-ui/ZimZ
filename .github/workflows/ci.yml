@@ -17,7 +17,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Matches the production runtime; the Gateway client depends on
+          # Node's Web Crypto being available globally.
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -26,5 +28,29 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Separate job: a new advisory should not block a build that is
+      # otherwise fine, but it must be visible.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
