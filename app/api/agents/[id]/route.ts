@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { callGatewayRpc } from "@/src/lib/openclawGateway";
 import type {
-  AgentDeleteParams,
   AgentUpdateParams,
   AgentsListResponse,
   GatewayAgentEntry,
+  GatewayAgentsDeleteParams,
+  GatewayAgentsUpdateParams,
 } from "@/src/types/agent";
+
+/** Body accepted by PATCH — Gateway fields plus the two workspace files. */
+type AgentPatchBody = Partial<AgentUpdateParams> & {
+  soulMd?: string;
+  memoryMd?: string;
+};
 
 interface ParamsContext {
   params: Promise<{ id: string }>;
@@ -52,10 +59,12 @@ export async function DELETE(_request: Request, context: ParamsContext) {
       );
     }
 
+    // The Gateway keys agents by `agentId` and gates file removal behind
+    // `deleteFiles`. Leaving that off keeps the workspace on disk, so a
+    // mistaken delete stays recoverable.
     await callGatewayRpc<unknown>("agents.delete", {
-      id,
-      force: true,
-    } satisfies AgentDeleteParams);
+      agentId: id,
+    } satisfies GatewayAgentsDeleteParams);
 
     return NextResponse.json({
       success: true,
@@ -117,13 +126,18 @@ export async function GET(_request: Request, context: ParamsContext) {
 export async function PATCH(request: Request, context: ParamsContext) {
   try {
     const { id } = await context.params;
-    const body = (await request.json()) as Partial<AgentUpdateParams> & {
-      soulMd?: string;
-      memoryMd?: string;
-    };
+    const body = (await request.json()) as AgentPatchBody;
 
-    // Strip `id` from body to prevent path-ID override (security fix)
-    const { soulMd, memoryMd, id: _bodyId, ...rpcParams } = body;
+    const { soulMd, memoryMd } = body;
+
+    // Allowlist the fields forwarded to agents.update. The agent id comes from
+    // the path, never the body, and the Gateway rejects unknown properties, so
+    // identity is flattened to the emoji/avatar fields it accepts.
+    const rpcParams: Omit<GatewayAgentsUpdateParams, "agentId"> = {};
+    if (body.model !== undefined) rpcParams.model = body.model;
+    if (body.name !== undefined) rpcParams.name = body.name;
+    if (body.identity?.emoji !== undefined) rpcParams.emoji = body.identity.emoji;
+    if (body.identity?.avatar !== undefined) rpcParams.avatar = body.identity.avatar;
 
     // Write workspace files via Gateway RPC
     const fileWrites: Promise<unknown>[] = [];
@@ -145,9 +159,9 @@ export async function PATCH(request: Request, context: ParamsContext) {
     const hasRpcFields = Object.keys(rpcParams).length > 0;
     if (hasRpcFields) {
       await callGatewayRpc<unknown>("agents.update", {
-        id,
+        agentId: id,
         ...rpcParams,
-      });
+      } satisfies GatewayAgentsUpdateParams);
     }
 
     return NextResponse.json({ ok: true, agentId: id });
