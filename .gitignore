@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Claude / Cursor local settings
 .claude/
+
+# local helper backups
+.env.bak.*
