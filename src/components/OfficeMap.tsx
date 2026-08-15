@@ -162,7 +162,6 @@ function ZoneCorners({ color }: { color: string }) {
 function AgentAvatar({
   agent,
   preset,
-  transitionKey,
   isSelected,
   onToggle,
   onClose,
@@ -171,7 +170,6 @@ function AgentAvatar({
 }: {
   agent: Agent;
   preset: MotionPreset;
-  transitionKey: string;
   isSelected: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -312,7 +310,6 @@ function ZonePanel({
               key={agent.id}
               agent={agent}
               preset={preset}
-              transitionKey={agent.status}
               isSelected={selectedAgentId === agent.id}
               onToggle={() => onToggleAgent(agent.id)}
               onClose={onCloseAgent}
